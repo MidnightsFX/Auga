@@ -1,4 +1,5 @@
 ﻿using HarmonyLib;
+using TMPro;
 using UnityEngine;
 
 namespace Auga
