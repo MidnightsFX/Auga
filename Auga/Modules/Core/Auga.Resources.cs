@@ -1,46 +1,18 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Reflection;
 using BepInEx;
 using Newtonsoft.Json;
 using UnityEngine;
 
 namespace Auga
 {
-    // The files Auga carries inside Auga.dll: the assemblies the prefabs need, the asset bundle and the translations.
-    // A loose file of the same name in BepInEx\plugins\Auga\ or next to Auga.dll wins over the embedded one
-    // (GetAssetPath), so a newly built bundle or an edited translations.json can be tried without a rebuild.
+    // The files Auga carries inside Auga.dll: the asset bundle and the translations. A loose file of the same name in
+    // BepInEx\plugins\Auga\ or next to Auga.dll wins over the embedded one (GetAssetPath), so a newly built bundle or
+    // an edited translations.json can be tried without a rebuild. The prefabs' scripts are compiled into Auga.dll
+    // itself (see Auga.csproj), so no assembly is carried or loaded here.
     public partial class Auga
     {
-        private void LoadDependencies()
-        {
-            // Auga's own assembly, named explicitly: GetCallingAssembly() answered with whatever called Awake, and
-            // when Awake is detoured (a Harmony or MonoMod hook from another mod) that is a dynamic assembly, so the
-            // embedded resources ("Auga.<file>") were looked up under the wrong name and never found
-            var assembly = typeof(Auga).Assembly;
-            LoadEmbeddedAssembly(assembly, "ui_lib.dll"); // Fishlabs.GuiInputField shim for the prefabs (see UiLibShim)
-            LoadEmbeddedAssembly(assembly, "Unity.Auga.dll");
-        }
-
-        private static void LoadEmbeddedAssembly(Assembly assembly, string assemblyName)
-        {
-            var resourceName = $"{assembly.GetName().Name}.{assemblyName}";
-            var stream = assembly.GetManifestResourceStream(resourceName);
-            if (stream == null)
-            {
-                LogError($"Could not load embedded assembly ({assemblyName}): no resource '{resourceName}' in {assembly.GetName().Name}. Resources: {string.Join(", ", assembly.GetManifestResourceNames())}");
-                return;
-            }
-
-            using (stream)
-            {
-                var data = new byte[stream.Length];
-                stream.Read(data, 0, data.Length);
-                Assembly.Load(data);
-            }
-        }
-
         // translations.json is a flat object of word -> text, the keys without the "$" Valheim's localization adds.
         private static void LoadTranslations()
         {
@@ -144,7 +116,10 @@ namespace Auga
         // "Auga.<file>", see the EmbeddedResource items in Auga.csproj.
         private static Stream OpenEmbeddedFile(string filename)
         {
-            var assembly = typeof(Auga).Assembly;   // not GetCallingAssembly(): see LoadDependencies
+            // Auga's own assembly, named explicitly: GetCallingAssembly() answered with whatever called Awake, and
+            // when Awake is detoured (a Harmony or MonoMod hook from another mod) that is a dynamic assembly, so the
+            // embedded resources were looked up under the wrong name and never found
+            var assembly = typeof(Auga).Assembly;
             return assembly.GetManifestResourceStream($"{assembly.GetName().Name}.{filename}");
         }
     }

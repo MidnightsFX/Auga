@@ -27,7 +27,7 @@ public static class Jewelcrafting
 
     internal static void Apply(Harmony harmony, BepInEx.PluginInfo plugin)
     {
-        ModAssembly = Assembly.LoadFile(plugin.Location);
+        ModAssembly = plugin.Instance.GetType().Assembly;
         Synergy = ModAssembly.GetType("Jewelcrafting.Synergy");
         SocketsBackground = ModAssembly.GetType("Jewelcrafting.SocketsBackground");
         FusionBoxSetup = ModAssembly.GetType("Jewelcrafting.FusionBoxSetup");

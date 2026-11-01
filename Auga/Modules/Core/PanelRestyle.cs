@@ -704,6 +704,192 @@ namespace Auga
             doomed.Add(old.gameObject);
         }
 
+        // ------------------------------------------------------------------ in place, for other mods' UI
+
+        /// <summary>Auga's flat panel colour, the middle of the AugaPanelBase gradient.</summary>
+        public static readonly Color PanelColor = new Color(0.22f, 0.18f, 0.15f, 0.97f);
+
+        /// <summary>
+        /// Auga's look on another mod's UI without changing its structure (see <see cref="AutoRestyle"/>): texts,
+        /// the panel background, buttons, scrollbars, sliders, toggles, input fields and dropdowns take Auga's fonts,
+        /// sprites and colours on the objects they already are. Nothing is created, moved, resized or destroyed: the
+        /// mod keeps references to its objects and adds listeners after building them, and a prefab asset must not get
+        /// new children. Running it again changes nothing more.
+        /// </summary>
+        public static void RestyleInPlace(Transform root)
+        {
+            if (root == null)
+                return;
+            try
+            {
+                TextsInPlace(root);
+                PanelBackgroundInPlace(root);
+                foreach (var button in root.GetComponentsInChildren<Button>(true))
+                    ButtonInPlace(button);
+                foreach (var scrollbar in root.GetComponentsInChildren<Scrollbar>(true))
+                    ScrollbarLookInPlace(scrollbar);
+                foreach (var slider in root.GetComponentsInChildren<Slider>(true))
+                    SliderLookInPlace(slider);
+                foreach (var toggle in root.GetComponentsInChildren<Toggle>(true))
+                    ToggleLookInPlace(toggle);
+                foreach (var selectable in root.GetComponentsInChildren<Selectable>(true))
+                {
+                    if (selectable is InputField || selectable is TMP_InputField)
+                        FieldLookInPlace(selectable.targetGraphic as Image);
+                    else if (selectable is Dropdown || selectable is TMP_Dropdown)
+                        DropdownLookInPlace(selectable);
+                }
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"[Auga] Restyling '{root.name}' in place failed: {e}");
+            }
+        }
+
+        // texts already on an Auga font are left alone, which also keeps MapColor from being applied twice
+        private static void TextsInPlace(Transform root)
+        {
+            foreach (var text in root.GetComponentsInChildren<TMP_Text>(true))
+            {
+                if (BoldFont == null || RegularFont == null || text.font == BoldFont || text.font == RegularFont) continue;
+                var bold = (text.fontStyle & FontStyles.Bold) != 0;
+                text.font = bold ? BoldFont : RegularFont;
+                if (bold) text.fontStyle &= ~FontStyles.Bold;
+                text.color = MapColor(text.color);
+            }
+            var legacyBold = Auga.Assets.SourceSansProBold;
+            var legacyRegular = Auga.Assets.SourceSansProRegular;
+            foreach (var text in root.GetComponentsInChildren<Text>(true))
+            {
+                if (legacyBold == null || legacyRegular == null || text.font == legacyBold || text.font == legacyRegular) continue;
+                var bold = text.fontStyle == FontStyle.Bold || text.fontStyle == FontStyle.BoldAndItalic;
+                text.font = bold ? legacyBold : legacyRegular;
+                if (bold) text.fontStyle = text.fontStyle == FontStyle.BoldAndItalic ? FontStyle.Italic : FontStyle.Normal;
+                text.color = MapColor(text.color);
+            }
+        }
+
+        // The backdrop (the root's own image, or a child image covering nearly all of it) becomes Auga's flat panel
+        // colour, and flat boxes inside take Auga's dark tone. Images with a mesh effect (Auga's own gradient panels)
+        // and the parts of controls are left alone.
+        private static void PanelBackgroundInPlace(Transform root)
+        {
+            var backdrops = new List<Image>();
+            var rootRect = root as RectTransform;
+            var rootImage = root.GetComponent<Image>();
+            if (IsPlainImage(rootImage))
+                backdrops.Add(rootImage);
+            if (rootRect != null)
+            {
+                var size = rootRect.rect.size;
+                foreach (Transform child in root)
+                {
+                    var image = child.GetComponent<Image>();
+                    var rect = child as RectTransform;
+                    if (!IsPlainImage(image) || rect == null || size.x <= 0f || size.y <= 0f) continue;
+                    if (rect.rect.width >= size.x * 0.8f && rect.rect.height >= size.y * 0.8f)
+                        backdrops.Add(image);
+                }
+            }
+            foreach (var image in backdrops)
+                FlatLook(image, WithAlpha(PanelColor, Mathf.Min(image.color.a, PanelColor.a)));
+            foreach (var image in root.GetComponentsInChildren<Image>(true))
+            {
+                if (image.sprite != null || backdrops.Contains(image) || !IsPlainImage(image)) continue;
+                FlatLook(image, new Color(Brown7.r, Brown7.g, Brown7.b, Mathf.Min(image.color.a, 0.6f)));
+            }
+        }
+
+        private static bool IsPlainImage(Image image)
+        {
+            return image != null && image.GetComponent<BaseMeshEffect>() == null && image.GetComponentInParent<Selectable>() == null && image.GetComponent<Mask>() == null;
+        }
+
+        private static void ButtonInPlace(Button button)
+        {
+            if (button is ColorButtonText || !(button.targetGraphic is Image image)) return;
+            if (button.GetComponentInParent<Scrollbar>() != null || button.GetComponentInParent<TMP_Dropdown>() != null || button.GetComponentInParent<Dropdown>() != null) return;
+            var width = ((RectTransform)button.transform).rect.width;
+            var prefab = width > 0f && width <= 95f ? Auga.Assets.ButtonSmall : Auga.Assets.ButtonMedium;
+            var template = prefab != null ? prefab.GetComponent<Button>() : null;
+            if (template == null || !(template.targetGraphic is Image templateImage) || image.sprite == templateImage.sprite) return;
+            CopyLook(image, templateImage);
+            button.transition = template.transition;
+            button.spriteState = template.spriteState;
+            button.colors = template.colors;
+            var labelColor = prefab.GetComponent<ColorButtonTextValues>()?.TextColors.normalColor ?? Brown1;
+            foreach (var label in button.GetComponentsInChildren<TMP_Text>(true))
+            {
+                if (BoldFont != null) label.font = BoldFont;
+                label.color = WithAlpha(labelColor, label.color.a);
+            }
+            foreach (var label in button.GetComponentsInChildren<Text>(true))
+            {
+                if (Auga.Assets.SourceSansProBold != null) label.font = Auga.Assets.SourceSansProBold;
+                label.color = WithAlpha(labelColor, label.color.a);
+            }
+        }
+
+        // A plain colour. The material goes back to the UI default as well: Jotunn's panels and fields use a material
+        // that brings its own wood texture, which would still show through without a sprite.
+        private static void FlatLook(Image image, Color color)
+        {
+            if (image == null) return;
+            image.sprite = null;
+            image.type = Image.Type.Simple;
+            image.material = null;
+            image.color = color;
+        }
+
+        // RestyleScrollbarInPlace's look without its resizing
+        private static void ScrollbarLookInPlace(Scrollbar scrollbar)
+        {
+            FlatLook(scrollbar.GetComponent<Image>(), Brown5);
+            FlatLook(scrollbar.handleRect != null ? scrollbar.handleRect.GetComponent<Image>() : null, ScrollHandle);
+            scrollbar.transition = Selectable.Transition.None;
+        }
+
+        // RestyleSliderInPlace's look without resizing the handle
+        private static void SliderLookInPlace(Slider slider)
+        {
+            var template = Auga.Assets.LabeledSliderWithValue != null ? Auga.Assets.LabeledSliderWithValue.GetComponentInChildren<Slider>(true) : null;
+            if (template == null) return;
+            var handle = ImageOf(slider.handleRect);
+            var templateHandle = ImageOf(template.handleRect);
+            if (handle == null || templateHandle == null || handle.sprite == templateHandle.sprite) return;
+            CopyLook(TrackOf(slider), TrackOf(template));
+            CopyLook(ImageOf(slider.fillRect), ImageOf(template.fillRect));
+            CopyLook(handle, templateHandle);
+        }
+
+        // RestyleToggleInPlace's look without resizing the box or moving the mark
+        private static void ToggleLookInPlace(Toggle toggle)
+        {
+            var template = Auga.Assets.LabeledCheckbox != null ? Auga.Assets.LabeledCheckbox.GetComponent<Toggle>() : null;
+            if (template == null) return;
+            var mark = toggle.graphic as Image;
+            var templateMark = template.graphic as Image;
+            if (mark == null || templateMark == null || mark.sprite == templateMark.sprite) return;
+            var box = toggle.targetGraphic as Image;
+            var templateBox = template.targetGraphic as Image;
+            if (box != null && box != mark) CopyLook(box, templateBox);
+            CopyLook(mark, templateMark);
+        }
+
+        private static void FieldLookInPlace(Image background)
+        {
+            FlatLook(background, new Color(Brown7.r, Brown7.g, Brown7.b, 0.85f));
+        }
+
+        // the box looks like an input field (Auga's own dropdown art is tinted by a gradient that a copy would lack),
+        // the list like a panel
+        private static void DropdownLookInPlace(Selectable dropdown)
+        {
+            FieldLookInPlace(dropdown.targetGraphic as Image);
+            var list = dropdown is TMP_Dropdown tmp ? tmp.template : dropdown is Dropdown legacy ? legacy.template : null;
+            FlatLook(list != null ? list.GetComponent<Image>() : null, PanelColor);
+        }
+
         // ------------------------------------------------------------------ re-pointing
 
         /// <summary>

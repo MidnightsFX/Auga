@@ -1,3 +1,7 @@
+### 1.4.1
+* Removes older dynamic patching of external mods
+    * UI changes now happen at runtime instead of by rebuilding other mods     
+
 ### 1.4.0
 *Mod Compatibility*
 

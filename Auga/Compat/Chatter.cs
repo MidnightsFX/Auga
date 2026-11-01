@@ -19,7 +19,7 @@ public static class Chatter
 
     internal static void Apply(Harmony harmony, BepInEx.PluginInfo plugin)
     {
-        ChatterType = Assembly.LoadFile(plugin.Location);
+        ChatterType = plugin.Instance.GetType().Assembly;
         ToggleCell = ChatterType.GetType("Chatter.ToggleCell");
         var createChildCellMethod = AccessTools.Method(ToggleCell, "CreateChildCell");
         var createChildLabelMethod = AccessTools.Method(ToggleCell, "CreateChildLabel");

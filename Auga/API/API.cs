@@ -9,12 +9,24 @@ using System.Linq;
 using System.Threading;
 using AugaUnity;
 using Object = UnityEngine.Object;
+#else
+using System.Collections.Generic;
+using System.Reflection;
+using System.Runtime.ExceptionServices;
+using BepInEx.Bootstrap;
 #endif
 
 namespace Auga
 {
+    // Compiled into Auga.dll as the real API, and into other mods (with API defined) as the stub: there every method
+    // forwards to Auga's own Auga.API at runtime (see Forward at the end). Define AUGA_API_INTERNAL as well to keep
+    // the stub's types internal to the mod.
     [PublicAPI]
+#if AUGA_API_INTERNAL
+    internal static class API
+#else
     public static class API
+#endif
     {
         public static string RedText = "#CD2121";
         public static string Red = "#AD1616";
@@ -39,7 +51,7 @@ namespace Auga
 #if ! API
             return true;
 #else
-            return false;
+            return RealApi() != null;
 #endif
         }
         // Fonts & Assets
@@ -50,7 +62,7 @@ namespace Auga
 #if ! API
             return Auga.Assets.SourceSansProBold;
 #else
-            return null;
+            return Forward<Font>(nameof(GetBoldFont), Type.EmptyTypes, Array.Empty<object>());
 #endif
         }
 
@@ -60,7 +72,7 @@ namespace Auga
 #if ! API
             return Auga.Assets.SourceSansProSemiBold;
 #else
-            return null;
+            return Forward<Font>(nameof(GetSemiBoldFont), Type.EmptyTypes, Array.Empty<object>());
 #endif
         }
 
@@ -70,7 +82,7 @@ namespace Auga
 #if ! API
             return Auga.Assets.SourceSansProRegular;
 #else
-            return null;
+            return Forward<Font>(nameof(GetRegularFont), Type.EmptyTypes, Array.Empty<object>());
 #endif
         }
 
@@ -80,7 +92,7 @@ namespace Auga
 #if ! API
             return Auga.Assets.ItemBackgroundSprite;
 #else
-            return null;
+            return Forward<Sprite>(nameof(GetItemBackgroundSprite), Type.EmptyTypes, Array.Empty<object>());
 #endif
         }
 
@@ -92,7 +104,7 @@ namespace Auga
 #if ! API
             return AugaPanelRestyler.BoldFont;
 #else
-            return null;
+            return Forward<TMP_FontAsset>(nameof(GetBoldFontAsset), Type.EmptyTypes, Array.Empty<object>());
 #endif
         }
 
@@ -102,7 +114,7 @@ namespace Auga
 #if ! API
             return AugaSettingsBuilder.SemiBoldFont;
 #else
-            return null;
+            return Forward<TMP_FontAsset>(nameof(GetSemiBoldFontAsset), Type.EmptyTypes, Array.Empty<object>());
 #endif
         }
 
@@ -112,7 +124,7 @@ namespace Auga
 #if ! API
             return AugaPanelRestyler.RegularFont;
 #else
-            return null;
+            return Forward<TMP_FontAsset>(nameof(GetRegularFontAsset), Type.EmptyTypes, Array.Empty<object>());
 #endif
         }
 
@@ -136,6 +148,8 @@ namespace Auga
                 ReplaceScrollbars = replaceScrollbars,
                 RestyleTexts = restyleTexts,
             });
+#else
+            Forward(nameof(Panel_Restyle), new[] { typeof(GameObject), typeof(bool), typeof(bool), typeof(bool), typeof(bool) }, new object[] { panel, replaceBackground, replaceButtons, replaceScrollbars, restyleTexts });
 #endif
         }
 
@@ -151,6 +165,8 @@ namespace Auga
                 text.font = font;
             if (!string.IsNullOrEmpty(colorHex) && ColorUtility.TryParseHtmlString(colorHex, out var color))
                 text.color = color;
+#else
+            Forward(nameof(Text_Restyle), new[] { typeof(TMP_Text), typeof(bool), typeof(string) }, new object[] { text, bold, colorHex });
 #endif
         }
 
@@ -160,6 +176,8 @@ namespace Auga
 #if ! API
             if (scrollbar != null)
                 AugaPanelRestyler.RestyleScrollbarInPlace(scrollbar, vertical);
+#else
+            Forward(nameof(Scrollbar_Restyle), new[] { typeof(Scrollbar), typeof(bool) }, new object[] { scrollbar, vertical });
 #endif
         }
 
@@ -169,6 +187,8 @@ namespace Auga
 #if ! API
             if (slider != null)
                 AugaPanelRestyler.RestyleSliderInPlace(slider);
+#else
+            Forward(nameof(Slider_Restyle), new[] { typeof(Slider) }, new object[] { slider });
 #endif
         }
 
@@ -178,6 +198,26 @@ namespace Auga
 #if ! API
             if (toggle != null)
                 AugaPanelRestyler.RestyleToggleInPlace(toggle);
+#else
+            Forward(nameof(Toggle_Restyle), new[] { typeof(Toggle) }, new object[] { toggle });
+#endif
+        }
+
+        // Automatic restyling
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        /// <summary>
+        /// Keeps Auga from restyling this mod's UI by itself. Auga gives every mod that declares a BepInDependency on
+        /// it Auga's look at runtime: the UI prefabs in its asset bundles, the widgets it builds with Jotunn's
+        /// GUIManager and what it adds to Auga's screens. A mod that styles itself through this API calls this first
+        /// thing in Awake, before it loads a bundle or builds UI.
+        /// </summary>
+        [UsedImplicitly]
+        public static void AutoRestyle_Exclude(string pluginGUID)
+        {
+#if ! API
+            AutoRestyle.Exclude(pluginGUID);
+#else
+            Forward(nameof(AutoRestyle_Exclude), new[] { typeof(string) }, new object[] { pluginGUID });
 #endif
         }
 
@@ -211,7 +251,7 @@ namespace Auga
 
             return panel;
 #else
-            return null;
+            return Forward<GameObject>(nameof(Panel_Create), new[] { typeof(Transform), typeof(Vector2), typeof(string), typeof(bool) }, new object[] { parent, size, name, withCornerDecoration });
 #endif
         }
 
@@ -229,7 +269,7 @@ namespace Auga
 
             return button.GetComponent<ColorButtonText>();
 #else
-            return null;
+            return Forward<Button>(nameof(SmallButton_Create), new[] { typeof(Transform), typeof(string), typeof(string) }, new object[] { parent, name, labelText });
 #endif
         }
 
@@ -247,7 +287,7 @@ namespace Auga
 
             return button.GetComponent<ColorButtonText>();
 #else
-            return null;
+            return Forward<Button>(nameof(MediumButton_Create), new[] { typeof(Transform), typeof(string), typeof(string) }, new object[] { parent, name, labelText });
 #endif
         }
 
@@ -265,7 +305,7 @@ namespace Auga
 
             return button.GetComponent<ColorButtonText>();
 #else
-            return null;
+            return Forward<Button>(nameof(FancyButton_Create), new[] { typeof(Transform), typeof(string), typeof(string) }, new object[] { parent, name, labelText });
 #endif
         }
 
@@ -283,7 +323,7 @@ namespace Auga
 
             return button.GetComponent<ColorButtonText>();
 #else
-            return null;
+            return Forward<Button>(nameof(SettingsButton_Create), new[] { typeof(Transform), typeof(string), typeof(string) }, new object[] { parent, name, labelText });
 #endif
         }
 
@@ -306,7 +346,7 @@ namespace Auga
 
             return button.GetComponent<Button>();
 #else
-            return null;
+            return Forward<Button>(nameof(DiamondButton_Create), new[] { typeof(Transform), typeof(string), typeof(Sprite) }, new object[] { parent, name, icon });
 #endif
         }
 
@@ -323,7 +363,7 @@ namespace Auga
 
             return divider;
 #else
-            return null;
+            return Forward<GameObject>(nameof(Divider_CreateSmall), new[] { typeof(Transform), typeof(string), typeof(float) }, new object[] { parent, name, width });
 #endif
         }
 
@@ -340,7 +380,7 @@ namespace Auga
 
             return new Tuple<GameObject, GameObject>(divider, divider.transform.Find("Content").gameObject);
 #else
-            return null;
+            return Forward<Tuple<GameObject, GameObject>>(nameof(Divider_CreateMedium), new[] { typeof(Transform), typeof(string), typeof(float) }, new object[] { parent, name, width });
 #endif
         }
 
@@ -357,7 +397,7 @@ namespace Auga
 
             return new Tuple<GameObject, GameObject>(divider, divider.transform.Find("Content").gameObject);
 #else
-            return null;
+            return Forward<Tuple<GameObject, GameObject>>(nameof(Divider_CreateLarge), new[] { typeof(Transform), typeof(string), typeof(float) }, new object[] { parent, name, width });
 #endif
         }
 
@@ -380,6 +420,8 @@ namespace Auga
             {
                 text.color = baseTextColor;
             }
+#else
+            Forward(nameof(Button_SetTextColors), new[] { typeof(Button), typeof(Color), typeof(Color), typeof(Color), typeof(Color), typeof(Color), typeof(Color) }, new object[] { button, normal, highlighted, pressed, selected, disabled, baseTextColor });
 #endif
         }
 
@@ -398,6 +440,8 @@ namespace Auga
             {
                 text.color = color;
             }
+#else
+            Forward(nameof(Button_OverrideTextColor), new[] { typeof(Button), typeof(Color) }, new object[] { button, color });
 #endif
         }
 
@@ -412,6 +456,8 @@ namespace Auga
             }
 
             uiTooltip.m_tooltipPrefab = Auga.Assets.SimpleTooltip;
+#else
+            Forward(nameof(Tooltip_MakeSimpleTooltip), new[] { typeof(GameObject) }, new object[] { obj });
 #endif
         }
 
@@ -434,6 +480,8 @@ namespace Auga
             }
 
             itemTooltip.Item = item;
+#else
+            Forward(nameof(Tooltip_MakeItemTooltip), new[] { typeof(GameObject), typeof(ItemDrop.ItemData) }, new object[] { obj, item });
 #endif
         }
 
@@ -456,6 +504,8 @@ namespace Auga
             }
 
             foodTooltip.Food = food;
+#else
+            Forward(nameof(Tooltip_MakeFoodTooltip), new[] { typeof(GameObject), typeof(Player.Food) }, new object[] { obj, food });
 #endif
         }
 
@@ -478,6 +528,8 @@ namespace Auga
             }
 
             statusEffectTooltip.StatusEffect = statusEffect;
+#else
+            Forward(nameof(Tooltip_MakeStatusEffectTooltip), new[] { typeof(GameObject), typeof(StatusEffect) }, new object[] { obj, statusEffect });
 #endif
         }
 
@@ -500,6 +552,8 @@ namespace Auga
             }
 
             skillTooltip.Skill = skill;
+#else
+            Forward(nameof(Tooltip_MakeSkillTooltip), new[] { typeof(GameObject), typeof(Skills.Skill) }, new object[] { obj, skill });
 #endif
         }
 
@@ -511,7 +565,7 @@ namespace Auga
 #if ! API
             return WorkbenchPanelController.instance != null && WorkbenchPanelController.instance.HasPlayerPanelTab(tabID);
 #else
-            return false;
+            return Forward<bool>(nameof(PlayerPanel_HasTab), new[] { typeof(string) }, new object[] { tabID });
 #endif
         }
 
@@ -540,7 +594,7 @@ namespace Auga
 
             return null;
 #else
-            return null;
+            return Forward<PlayerPanelTabData>(nameof(PlayerPanel_AddTab), new[] { typeof(string), typeof(Sprite), typeof(string), typeof(Action<int>) }, new object[] { tabID, tabIcon, tabTitleText, onTabSelected });
 #endif
         }
 
@@ -550,7 +604,7 @@ namespace Auga
 #if ! API
             return WorkbenchPanelController.instance != null && WorkbenchPanelController.instance.IsTabActive(tabButton);
 #else
-            return false;
+            return Forward<bool>(nameof(PlayerPanel_IsTabActive), new[] { typeof(GameObject) }, new object[] { tabButton });
 #endif
         }
 
@@ -564,7 +618,7 @@ namespace Auga
             }
             return null;
 #else
-            return null;
+            return Forward<Button>(nameof(PlayerPanel_GetTabButton), new[] { typeof(int) }, new object[] { index });
 #endif
         }
 
@@ -578,7 +632,7 @@ namespace Auga
 #if ! API
             return PlayerPanelLinks.Add(linkID, icon, tooltip, onClick);
 #else
-            return false;
+            return Forward<bool>(nameof(PlayerPanel_AddLink), new[] { typeof(string), typeof(Sprite), typeof(string), typeof(Action) }, new object[] { linkID, icon, tooltip, onClick });
 #endif
         }
 
@@ -588,7 +642,7 @@ namespace Auga
 #if ! API
             return PlayerPanelLinks.Has(linkID);
 #else
-            return false;
+            return Forward<bool>(nameof(PlayerPanel_HasLink), new[] { typeof(string) }, new object[] { linkID });
 #endif
         }
 
@@ -598,7 +652,7 @@ namespace Auga
 #if ! API
             return PlayerPanelLinks.SetVisible(linkID, visible);
 #else
-            return false;
+            return Forward<bool>(nameof(PlayerPanel_SetLinkVisible), new[] { typeof(string), typeof(bool) }, new object[] { linkID, visible });
 #endif
         }
 
@@ -608,7 +662,7 @@ namespace Auga
 #if ! API
             return PlayerPanelLinks.Remove(linkID);
 #else
-            return false;
+            return Forward<bool>(nameof(PlayerPanel_RemoveLink), new[] { typeof(string) }, new object[] { linkID });
 #endif
         }
 
@@ -618,7 +672,7 @@ namespace Auga
 #if ! API
             return PlayerPanelLinks.Get(linkID);
 #else
-            return null;
+            return Forward<GameObject>(nameof(PlayerPanel_GetLink), new[] { typeof(string) }, new object[] { linkID });
 #endif
         }
 
@@ -630,7 +684,7 @@ namespace Auga
 #if ! API
             return WorkbenchPanelController.instance != null && WorkbenchPanelController.instance.HasWorkbenchTab(tabID);
 #else
-            return false;
+            return Forward<bool>(nameof(Workbench_HasWorkbenchTab), new[] { typeof(string) }, new object[] { tabID });
 #endif
         }
 
@@ -659,7 +713,7 @@ namespace Auga
 
             return null;
 #else
-            return null;
+            return Forward<WorkbenchTabData>(nameof(Workbench_AddWorkbenchTab), new[] { typeof(string), typeof(Sprite), typeof(string), typeof(Action<int>) }, new object[] { tabID, tabIcon, tabTitleText, onTabSelected });
 #endif
         }
 
@@ -688,7 +742,7 @@ namespace Auga
 
             return null;
 #else
-            return null;
+            return Forward<WorkbenchTabData>(nameof(Workbench_AddVanillaWorkbenchTab), new[] { typeof(string), typeof(Sprite), typeof(string), typeof(Action<int>) }, new object[] { tabID, tabIcon, tabTitleText, onTabSelected });
 #endif
         }
 
@@ -698,7 +752,7 @@ namespace Auga
 #if ! API
             return WorkbenchPanelController.instance != null && WorkbenchPanelController.instance.IsTabActive(tabButton);
 #else
-            return false;
+            return Forward<bool>(nameof(Workbench_IsTabActive), new[] { typeof(GameObject) }, new object[] { tabButton });
 #endif
         }
 
@@ -708,7 +762,7 @@ namespace Auga
 #if ! API
             return WorkbenchPanelController.instance?.WorkbenchTabController.TabButtons[0].GetComponent<Button>();
 #else
-            return null;
+            return Forward<Button>(nameof(Workbench_GetCraftingTabButton), Type.EmptyTypes, Array.Empty<object>());
 #endif
         }
 
@@ -718,7 +772,7 @@ namespace Auga
 #if ! API
             return WorkbenchPanelController.instance?.WorkbenchTabController.TabButtons[1].GetComponent<Button>();
 #else
-            return null;
+            return Forward<Button>(nameof(Workbench_GetUpgradeTabButton), Type.EmptyTypes, Array.Empty<object>());
 #endif
         }
 
@@ -728,7 +782,7 @@ namespace Auga
 #if ! API
             return WorkbenchPanelController.instance?.CraftingPanel.CreateResultsPanel();
 #else
-            return null;
+            return Forward<GameObject>(nameof(Workbench_CreateNewResultsPanel), Type.EmptyTypes, Array.Empty<object>());
 #endif
         }
 
@@ -754,6 +808,8 @@ namespace Auga
         {
 #if ! API
             TooltipTextBox_AddLine(tooltipTextBoxGO, t, s, localize, false);
+#else
+            Forward(nameof(TooltipTextBox_AddLine), new[] { typeof(GameObject), typeof(Text), typeof(object), typeof(bool) }, new object[] { tooltipTextBoxGO, t, s, localize });
 #endif
         }
         
@@ -770,6 +826,8 @@ namespace Auga
             // the TextMeshPro text on the same object, or the box's own text
             var target = t != null ? t.GetComponent<TMP_Text>() : null;
             tooltipTextBox.AddLine(target != null ? target : tooltipTextBox.Text, s, localize, overwrite);
+#else
+            Forward(nameof(TooltipTextBox_AddLine), new[] { typeof(GameObject), typeof(Text), typeof(object), typeof(bool), typeof(bool) }, new object[] { tooltipTextBoxGO, t, s, localize, overwrite });
 #endif
         }
 
@@ -778,6 +836,8 @@ namespace Auga
         {
 #if ! API
             TooltipTextBox_AddLine(tooltipTextBoxGO,a,localize,false);
+#else
+            Forward(nameof(TooltipTextBox_AddLine), new[] { typeof(GameObject), typeof(object), typeof(bool) }, new object[] { tooltipTextBoxGO, a, localize });
 #endif
         }
 
@@ -791,6 +851,8 @@ namespace Auga
             }
 
             tooltipTextBox.AddLine(a, localize, overwrite);
+#else
+            Forward(nameof(TooltipTextBox_AddLine), new[] { typeof(GameObject), typeof(object), typeof(bool), typeof(bool) }, new object[] { tooltipTextBoxGO, a, localize, overwrite });
 #endif
         }
 
@@ -799,6 +861,8 @@ namespace Auga
         {
 #if ! API
             TooltipTextBox_AddLine(tooltipTextBoxGO,a,b,localize,false);
+#else
+            Forward(nameof(TooltipTextBox_AddLine), new[] { typeof(GameObject), typeof(object), typeof(object), typeof(bool) }, new object[] { tooltipTextBoxGO, a, b, localize });
 #endif
         }
 
@@ -812,6 +876,8 @@ namespace Auga
             }
 
             tooltipTextBox.AddLine(a, b, localize, overwrite);
+#else
+            Forward(nameof(TooltipTextBox_AddLine), new[] { typeof(GameObject), typeof(object), typeof(object), typeof(bool), typeof(bool) }, new object[] { tooltipTextBoxGO, a, b, localize, overwrite });
 #endif
         }
 
@@ -820,6 +886,8 @@ namespace Auga
         {
 #if ! API
             TooltipTextBox_AddLine(tooltipTextBoxGO,a,b,parenthetical,localize,false);
+#else
+            Forward(nameof(TooltipTextBox_AddLine), new[] { typeof(GameObject), typeof(object), typeof(object), typeof(object), typeof(bool) }, new object[] { tooltipTextBoxGO, a, b, parenthetical, localize });
 #endif
         }
 
@@ -833,6 +901,8 @@ namespace Auga
             }
 
             tooltipTextBox.AddLine(a, b, parenthetical, localize, overwrite);
+#else
+            Forward(nameof(TooltipTextBox_AddLine), new[] { typeof(GameObject), typeof(object), typeof(object), typeof(object), typeof(bool), typeof(bool) }, new object[] { tooltipTextBoxGO, a, b, parenthetical, localize, overwrite });
 #endif
         }
 
@@ -841,6 +911,8 @@ namespace Auga
         {
 #if ! API
             TooltipTextBox_AddUpgradeLine(tooltipTextBoxGO,label,value1,value2,color2, localize,false);
+#else
+            Forward(nameof(TooltipTextBox_AddUpgradeLine), new[] { typeof(GameObject), typeof(object), typeof(object), typeof(object), typeof(string), typeof(bool) }, new object[] { tooltipTextBoxGO, label, value1, value2, color2, localize });
 #endif
         }
 
@@ -854,6 +926,8 @@ namespace Auga
             }
 
             tooltipTextBox.AddUpgradeLine(label, value1, value2, color2, localize, overwrite);
+#else
+            Forward(nameof(TooltipTextBox_AddUpgradeLine), new[] { typeof(GameObject), typeof(object), typeof(object), typeof(object), typeof(string), typeof(bool), typeof(bool) }, new object[] { tooltipTextBoxGO, label, value1, value2, color2, localize, overwrite });
 #endif
         }
 
@@ -879,6 +953,8 @@ namespace Auga
         {
 #if ! API
             ComplexTooltip.OnComplexTooltipGeneratedForItem += (complexTooltip, item) => listener(complexTooltip.gameObject, item);
+#else
+            Forward(nameof(ComplexTooltip_AddItemTooltipCreatedListener), new[] { typeof(Action<GameObject, ItemDrop.ItemData>) }, new object[] { listener });
 #endif
         }
 
@@ -887,6 +963,8 @@ namespace Auga
         {
 #if ! API
             ComplexTooltip.OnComplexTooltipGeneratedForFood += (complexTooltip, item) => listener(complexTooltip.gameObject, item);
+#else
+            Forward(nameof(ComplexTooltip_AddFoodTooltipCreatedListener), new[] { typeof(Action<GameObject, Player.Food>) }, new object[] { listener });
 #endif
         }
 
@@ -895,6 +973,8 @@ namespace Auga
         {
 #if ! API
             ComplexTooltip.OnComplexTooltipGeneratedForStatusEffect += (complexTooltip, item) => listener(complexTooltip.gameObject, item);
+#else
+            Forward(nameof(ComplexTooltip_AddStatusEffectTooltipCreatedListener), new[] { typeof(Action<GameObject, StatusEffect>) }, new object[] { listener });
 #endif
         }
 
@@ -903,6 +983,8 @@ namespace Auga
         {
 #if ! API
             ComplexTooltip.OnComplexTooltipGeneratedForSkill += (complexTooltip, item) => listener(complexTooltip.gameObject, item);
+#else
+            Forward(nameof(ComplexTooltip_AddSkillTooltipCreatedListener), new[] { typeof(Action<GameObject, Skills.Skill>) }, new object[] { listener });
 #endif
         }
 
@@ -911,6 +993,8 @@ namespace Auga
         {
 #if ! API
             ComplexTooltip.AddItemStatPreprocessor(itemStatPreprocessor);
+#else
+            Forward(nameof(ComplexTooltip_AddItemStatPreprocessor), new[] { typeof(Func<ItemDrop.ItemData, string, string, Tuple<string, string>>) }, new object[] { itemStatPreprocessor });
 #endif
         }
 
@@ -924,6 +1008,8 @@ namespace Auga
             }
 
             complexTooltip.ClearTextBoxes();
+#else
+            Forward(nameof(ComplexTooltip_ClearTextBoxes), new[] { typeof(GameObject) }, new object[] { complexTooltipGO });
 #endif
         }
 
@@ -938,7 +1024,7 @@ namespace Auga
 
             return complexTooltip.AddTextBox(complexTooltip.TwoColumnTextBoxPrefab).gameObject;
 #else
-            return null;
+            return Forward<GameObject>(nameof(ComplexTooltip_AddTwoColumnTextBox), new[] { typeof(GameObject) }, new object[] { complexTooltipGO });
 #endif
         }
 
@@ -953,7 +1039,7 @@ namespace Auga
 
             return complexTooltip.AddTextBox(complexTooltip.CenteredTextBoxPrefab).gameObject;
 #else
-            return null;
+            return Forward<GameObject>(nameof(ComplexTooltip_AddCenteredTextBox), new[] { typeof(GameObject) }, new object[] { complexTooltipGO });
 #endif
         }
 
@@ -968,7 +1054,7 @@ namespace Auga
 
             return complexTooltip.AddTextBox(complexTooltip.UpgradeLabelsPrefab).gameObject;
 #else
-            return null;
+            return Forward<GameObject>(nameof(ComplexTooltip_AddUpgradeLabels), new[] { typeof(GameObject) }, new object[] { complexTooltipGO });
 #endif
         }
 
@@ -983,7 +1069,7 @@ namespace Auga
 
             return complexTooltip.AddTextBox(complexTooltip.UpgradeTwoColumnTextBoxPrefab).gameObject;
 #else
-            return null;
+            return Forward<GameObject>(nameof(ComplexTooltip_AddUpgradeTwoColumnTextBox), new[] { typeof(GameObject) }, new object[] { complexTooltipGO });
 #endif
         }
 
@@ -998,7 +1084,7 @@ namespace Auga
 
             return complexTooltip.AddTextBox(complexTooltip.CheckBoxTextBoxPrefab).gameObject;
 #else
-            return null;
+            return Forward<GameObject>(nameof(ComplexTooltip_AddCheckBoxTextBox), new[] { typeof(GameObject) }, new object[] { complexTooltipGO });
 #endif
         }
 
@@ -1013,7 +1099,7 @@ namespace Auga
 
             return complexTooltip.AddDivider();
 #else
-            return null;
+            return Forward<GameObject>(nameof(ComplexTooltip_AddDivider), new[] { typeof(GameObject) }, new object[] { complexTooltipGO });
 #endif
         }
 
@@ -1027,6 +1113,8 @@ namespace Auga
             }
 
             complexTooltip.SetTopic(topic);
+#else
+            Forward(nameof(ComplexTooltip_SetTopic), new[] { typeof(GameObject), typeof(string) }, new object[] { complexTooltipGO, topic });
 #endif
         }
 
@@ -1040,6 +1128,8 @@ namespace Auga
             }
 
             complexTooltip.SetSubtitle(topic);
+#else
+            Forward(nameof(ComplexTooltip_SetSubtitle), new[] { typeof(GameObject), typeof(string) }, new object[] { complexTooltipGO, topic });
 #endif
         }
 
@@ -1053,6 +1143,8 @@ namespace Auga
             }
 
             complexTooltip.SetDescription(desc);
+#else
+            Forward(nameof(ComplexTooltip_SetDescription), new[] { typeof(GameObject), typeof(string) }, new object[] { complexTooltipGO, desc });
 #endif
         }
 
@@ -1066,6 +1158,8 @@ namespace Auga
             }
 
             complexTooltip.SetIcon(icon);
+#else
+            Forward(nameof(ComplexTooltip_SetIcon), new[] { typeof(GameObject), typeof(Sprite) }, new object[] { complexTooltipGO, icon });
 #endif
         }
 
@@ -1079,6 +1173,8 @@ namespace Auga
             }
 
             complexTooltip.EnableDescription(enabled);
+#else
+            Forward(nameof(ComplexTooltip_EnableDescription), new[] { typeof(GameObject), typeof(bool) }, new object[] { complexTooltipGO, enabled });
 #endif
         }
 
@@ -1093,7 +1189,7 @@ namespace Auga
 
             return complexTooltip.GenerateItemSubtext(item);
 #else
-            return string.Empty;
+            return Forward<string>(nameof(ComplexTooltip_GenerateItemSubtext), new[] { typeof(GameObject), typeof(ItemDrop.ItemData) }, new object[] { complexTooltipGO, item });
 #endif
         }
 
@@ -1107,6 +1203,8 @@ namespace Auga
             }
 
             complexTooltip.SetItem(item, quality, variant);
+#else
+            Forward(nameof(ComplexTooltip_SetItem), new[] { typeof(GameObject), typeof(ItemDrop.ItemData), typeof(int), typeof(int) }, new object[] { complexTooltipGO, item, quality, variant });
 #endif
         }
 
@@ -1120,6 +1218,8 @@ namespace Auga
             }
 
             complexTooltip.SetItemNoTextBoxes(item, quality, variant);
+#else
+            Forward(nameof(ComplexTooltip_SetItemNoTextBoxes), new[] { typeof(GameObject), typeof(ItemDrop.ItemData), typeof(int), typeof(int) }, new object[] { complexTooltipGO, item, quality, variant });
 #endif
         }
 
@@ -1133,6 +1233,8 @@ namespace Auga
             }
 
             complexTooltip.SetFood(food);
+#else
+            Forward(nameof(ComplexTooltip_SetFood), new[] { typeof(GameObject), typeof(Player.Food) }, new object[] { complexTooltipGO, food });
 #endif
         }
 
@@ -1146,6 +1248,8 @@ namespace Auga
             }
 
             complexTooltip.SetStatusEffect(statusEffect);
+#else
+            Forward(nameof(ComplexTooltip_SetStatusEffect), new[] { typeof(GameObject), typeof(StatusEffect) }, new object[] { complexTooltipGO, statusEffect });
 #endif
         }
 
@@ -1159,6 +1263,8 @@ namespace Auga
             }
 
             complexTooltip.SetSkill(skill);
+#else
+            Forward(nameof(ComplexTooltip_SetSkill), new[] { typeof(GameObject), typeof(Skills.Skill) }, new object[] { complexTooltipGO, skill });
 #endif
         }
 
@@ -1184,7 +1290,7 @@ namespace Auga
 #if ! API
             return !RequirementsPanelCheck(requirementsPanelGO, out var requirementsPanel) ? null : requirementsPanel.Icon;
 #else
-            return null;
+            return Forward<Image>(nameof(RequirementsPanel_GetIcon), new[] { typeof(GameObject) }, new object[] { requirementsPanelGO });
 #endif
         }
 
@@ -1194,7 +1300,7 @@ namespace Auga
 #if ! API
             return !RequirementsPanelCheck(requirementsPanelGO, out var requirementsPanel) ? null : requirementsPanel.RequirementList;
 #else
-            return null;
+            return Forward<GameObject[]>(nameof(RequirementsPanel_RequirementList), new[] { typeof(GameObject) }, new object[] { requirementsPanelGO });
 #endif
         }
 
@@ -1209,6 +1315,8 @@ namespace Auga
 
             var convertedWireStates = wireStates.Select(wireState => (WireState)wireState).ToList();
             requirementsPanel.WireFrame.Set(convertedWireStates, canCraft);
+#else
+            Forward(nameof(RequirementsPanel_SetWires), new[] { typeof(GameObject), typeof(RequirementWireState[]), typeof(bool) }, new object[] { requirementsPanelGO, wireStates, canCraft });
 #endif
         }
 
@@ -1226,7 +1334,7 @@ namespace Auga
 
             return WorkbenchPanelController.instance.CraftingPanel.EnableCustomVariantDialog(buttonLabel, onShow);
 #else
-            return null;
+            return Forward<TMP_Text>(nameof(CustomVariantPanel_Enable), new[] { typeof(string), typeof(Action<bool>) }, new object[] { buttonLabel, onShow });
 #endif
         }
 
@@ -1240,6 +1348,8 @@ namespace Auga
             }
 
             WorkbenchPanelController.instance.CraftingPanel.SetCustomVariantButtonLabel(buttonLabel);
+#else
+            Forward(nameof(CustomVariantPanel_SetButtonLabel), new[] { typeof(string) }, new object[] { buttonLabel });
 #endif
         }
 
@@ -1248,6 +1358,8 @@ namespace Auga
         {
 #if ! API
             WorkbenchPanelController.instance?.CraftingPanel.DisableCustomVariantDialog();
+#else
+            Forward(nameof(CustomVariantPanel_Disable), Type.EmptyTypes, Array.Empty<object>());
 #endif
         }
         
@@ -1273,8 +1385,116 @@ namespace Auga
 
             return controls;
 #else
-            return null;
+            return Forward<CraftingControls>(nameof(GetCraftingControls), Type.EmptyTypes, Array.Empty<object>());
 #endif
         }
+
+#if API
+        // The stub's way to the real API. Nothing is rewritten or patched: this finds Auga's own Auga.API through
+        // BepInEx and calls the method with the same name and parameter types. Without Auga every call returns the
+        // type's default. The types API.Common.cs declares exist once in the mod and once in Auga.dll, so they are
+        // converted on the way: an enum (or enum array) by value, a data class field by field.
+        private const string AugaPluginID = "randyknapp.mods.auga";
+        private static Type _realApi;
+        private static readonly Dictionary<string, List<KeyValuePair<Type[], MethodInfo>>> _targets = new Dictionary<string, List<KeyValuePair<Type[], MethodInfo>>>();
+
+        // a miss is not remembered: a mod that loads before Auga binds on a later call
+        private static Type RealApi()
+        {
+            if (_realApi == null && Chainloader.PluginInfos.TryGetValue(AugaPluginID, out var info) && info.Instance != null)
+                _realApi = info.Instance.GetType().Assembly.GetType("Auga.API");
+            return _realApi;
+        }
+
+        private static T Forward<T>(string name, Type[] types, object[] args)
+        {
+            var result = Forward(name, types, args);
+            return result == null ? default : (T)ConvertTo(result, typeof(T));
+        }
+
+        private static object Forward(string name, Type[] types, object[] args)
+        {
+            var target = Target(name, types);
+            if (target == null)
+                return null;
+            var parameters = target.GetParameters();
+            for (var i = 0; i < args.Length; i++)
+                args[i] = ConvertTo(args[i], parameters[i].ParameterType);
+            try
+            {
+                return target.Invoke(null, args);
+            }
+            catch (TargetInvocationException e) when (e.InnerException != null)
+            {
+                ExceptionDispatchInfo.Capture(e.InnerException).Throw();
+                throw;
+            }
+        }
+
+        private static MethodInfo Target(string name, Type[] types)
+        {
+            var api = RealApi();
+            if (api == null)
+                return null;
+            if (!_targets.TryGetValue(name, out var overloads))
+                _targets[name] = overloads = new List<KeyValuePair<Type[], MethodInfo>>();
+            foreach (var overload in overloads)
+            {
+                if (SameTypes(overload.Key, types))
+                    return overload.Value;
+            }
+            var method = api.GetMethod(name, BindingFlags.Public | BindingFlags.Static, null, Array.ConvertAll(types, t => RealType(t, api.Assembly)), null);
+            if (method == null)
+                Debug.LogWarning($"[Auga API] The installed Auga has no {name}({string.Join(", ", Array.ConvertAll(types, t => t.Name))}), so the call does nothing.");
+            overloads.Add(new KeyValuePair<Type[], MethodInfo>(types, method));
+            return method;
+        }
+
+        private static bool SameTypes(Type[] a, Type[] b)
+        {
+            if (a.Length != b.Length)
+                return false;
+            for (var i = 0; i < a.Length; i++)
+            {
+                if (a[i] != b[i])
+                    return false;
+            }
+            return true;
+        }
+
+        // the mod's own copy of a type from API.Common.cs stands for Auga's type of the same name
+        private static Type RealType(Type type, Assembly auga)
+        {
+            if (type.IsArray)
+                return RealType(type.GetElementType(), auga).MakeArrayType();
+            return type.Assembly == typeof(API).Assembly ? auga.GetType(type.FullName) ?? type : type;
+        }
+
+        private static object ConvertTo(object value, Type wanted)
+        {
+            if (value == null || wanted.IsInstanceOfType(value))
+                return value;
+            if (wanted.IsEnum)
+                return Enum.ToObject(wanted, Convert.ToInt32(value));
+            if (wanted.IsArray && value is Array array)
+            {
+                var element = wanted.GetElementType();
+                var converted = Array.CreateInstance(element, array.Length);
+                for (var i = 0; i < array.Length; i++)
+                    converted.SetValue(ConvertTo(array.GetValue(i), element), i);
+                return converted;
+            }
+            if (wanted.Assembly != typeof(API).Assembly && value.GetType().Assembly != typeof(API).Assembly)
+                return value;
+            var copy = Activator.CreateInstance(wanted);
+            foreach (var field in wanted.GetFields(BindingFlags.Public | BindingFlags.Instance))
+            {
+                var source = value.GetType().GetField(field.Name, BindingFlags.Public | BindingFlags.Instance);
+                if (source != null)
+                    field.SetValue(copy, ConvertTo(source.GetValue(value), field.FieldType));
+            }
+            return copy;
+        }
+#endif
     }
 }

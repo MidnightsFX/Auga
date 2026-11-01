@@ -63,6 +63,7 @@
   <ItemGroup>
     <Compile Include="Assets\Editor\UIGradient\UIGradientEditor.cs" />
     <Compile Include="Assets\Editor\AugaLauncher.cs" />
+    <Compile Include="Assets\Editor\AugaTestBundle.cs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="UnityEngine">
@@ -581,8 +582,8 @@
       <HintPath>Packages\valheim\PlayFabParty.dll</HintPath>
       <Private>False</Private>
     </Reference>
-    <Reference Include="Unity.Auga">
-      <HintPath>Assets\ExternalLibraries\Unity.Auga.dll</HintPath>
+    <Reference Include="Auga">
+      <HintPath>Assets\ExternalLibraries\Auga.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="SoftReferenceableAssets">
@@ -591,10 +592,6 @@
     </Reference>
     <Reference Include="UnityPipeline.Microsoft.CodeAnalysis.CSharp">
       <HintPath>Library\PackageCache\com.unity.pipeline@ab05e9cd7f74\Runtime\Plugins\CodeAnalysis\UnityPipeline.Microsoft.CodeAnalysis.CSharp.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="ui_lib">
-      <HintPath>Packages\valheim\ui_lib.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="Mono.Security">

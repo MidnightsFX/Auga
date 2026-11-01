@@ -25,9 +25,8 @@ msbuild Auga.sln -restore -p:Configuration=Debug      # or Release
 
 | Project | Output | Notes |
 | --- | --- | --- |
-| `AugaUnityLib` | `AugaUnityLib\bin\<Configuration>\Unity.Auga.dll` | also copied into `AugaUnity\Assets\ExternalLibraries` so the prefabs keep their script references |
-| `UiLibShim` | `UiLibShim\bin\<Configuration>\ui_lib.dll` | |
-| `Auga` | `Auga\bin\<Configuration>\net48\Auga.dll` | embeds the two above, the `augaassets` bundle and `Auga\Assets\translations.json` |
+| `AugaUnityLib` | `AugaUnityLib\bin\<Configuration>\net48\Auga.dll` | the prefab scripts, for the Unity project only: copied into `AugaUnity\Assets\ExternalLibraries` so the prefabs keep their script references, never shipped |
+| `Auga` | `Auga\bin\<Configuration>\net48\Auga.dll` | the plugin; compiles the `AugaUnityLib` sources in and embeds the `augaassets` bundle and `Auga\Assets\translations.json` |
 | `AugaAPI` | `AugaAPI\bin\<Configuration>\AugaAPI.dll` | the stub other mods reference; compiles `Auga\API\API.cs` and `API.Common.cs` with `API` defined |
 | `AugaApiExample` | `AugaApiExample\bin\<Configuration>\net48\AugaApiExample.dll` | compiles the same API stub source in, as a consuming mod would |
 

@@ -15,7 +15,7 @@ public static class MultiCraft
 
     internal static void Apply(Harmony harmony, PluginInfo plugin)
     {
-        var multiCraftPluginType = Assembly.LoadFile(plugin.Location);
+        var multiCraftPluginType = plugin.Instance.GetType().Assembly;
         _multiCraftUiType = multiCraftPluginType.GetType("MultiCraft.MultiCraft_UI");
         var multicraftLogicType = multiCraftPluginType.GetType("MultiCraft.MultiCraft_Logic");
         var createCraftButtonSpaceMethod = AccessTools.Method(_multiCraftUiType, "CreateSpaceFromCraftButton");

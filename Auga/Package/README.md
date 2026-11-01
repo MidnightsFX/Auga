@@ -3,7 +3,7 @@
 
 Project Auga is a completely re-imagined, modder-friendly UI-overhaul for Valheim. Every last piece of UI was considered and reworked from the ground-up to create a more helpful and immersive player experience, all while remaining familiar to Valheim veterans.
 
-Join the Discord: [Project Auga Discord](https://discord.gg/randyknappmods)
+Join the Discord: [Project Auga Discord](https://discord.gg/ZNhYeavv3C)
 Visit the Website: [ProjectAuga.com](https://projectauga.com/)
 
 ## What's Changed?

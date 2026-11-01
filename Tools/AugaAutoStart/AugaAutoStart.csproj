@@ -40,6 +40,17 @@
     <ProjectReference Include="$(ValheimAutoTestDir)ValheimAutoTest.csproj" Private="false" />
   </ItemGroup>
 
+  <!-- The Auga API stub, compiled in as a mod does (API 2.0: it finds Auga at runtime), and the test bundle of the
+       AUGA_TEST_AUTORESTYLE step (built by AugaTestBundle in ..\..\AugaUnity). -->
+  <PropertyGroup>
+    <DefineConstants>$(DefineConstants);API;AUGA_API_INTERNAL</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="..\..\Auga\API\API.cs" Link="AugaAPI\API.cs" />
+    <Compile Include="..\..\Auga\API\API.Common.cs" Link="AugaAPI\API.Common.cs" />
+    <EmbeddedResource Include="Assets\augatest" LogicalName="AugaAutoStart.augatest" />
+  </ItemGroup>
+
   <ItemDefinitionGroup>
     <Reference>
       <Private>false</Private>

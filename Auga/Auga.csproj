@@ -47,20 +47,20 @@
     <None Include="Modules\Inventory\InventoryGrid_Patches.cs" />
   </ItemGroup>
 
+  <!-- The MonoBehaviours the prefabs use (namespace AugaUnity). They are compiled into Auga.dll, and the bundle's
+       script references name Auga.dll, so the game resolves them without Auga loading any assembly itself.
+       ..\AugaUnityLib builds the Unity project's copy from the same files; it leaves out the same old UIEffects
+       scripts. -->
   <ItemGroup>
-    <ProjectReference Include="..\AugaUnityLib\AugaUnityLib.csproj" />
-    <!-- ui_lib.dll shim (Fishlabs.GuiInputField) for the prefabs; only embedded, never referenced. -->
-    <ProjectReference Include="..\UiLibShim\UiLibShim.csproj" ReferenceOutputAssembly="false" Private="false" />
+    <Compile Include="..\AugaUnityLib\**\*.cs" Exclude="..\AugaUnityLib\bin\**;..\AugaUnityLib\obj\**;..\AugaUnityLib\Properties\**;..\AugaUnityLib\UIDissolve.cs;..\AugaUnityLib\UIEffect.cs;..\AugaUnityLib\UIFlip.cs;..\AugaUnityLib\UIGradient.cs;..\AugaUnityLib\UIHsvModifier.cs" Link="AugaUnity\%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
 
-  <!-- Resources loaded at runtime from the manifest as "Auga.<file>" (see Auga.LoadDependencies, LoadAssetBundle and
+  <!-- Resources loaded at runtime from the manifest as "Auga.<file>" (see Auga.LoadAssetBundle and
        LoadTranslations). A loose file of the same name in BepInEx\plugins\Auga\ or next to Auga.dll wins over the
-       embedded bundle and translations (Auga.GetAssetPath). -->
+       embedded one (Auga.GetAssetPath). -->
   <ItemGroup>
     <EmbeddedResource Include="..\AugaUnity\AssetBundles\augaassets" Link="Assets\augaassets" LogicalName="$(RootNamespace).augaassets" />
     <EmbeddedResource Include="Assets\translations.json" LogicalName="$(RootNamespace).translations.json" />
-    <EmbeddedResource Include="..\AugaUnityLib\bin\$(Configuration)\Unity.Auga.dll" Link="Assets\Unity.Auga.dll" LogicalName="$(RootNamespace).Unity.Auga.dll" />
-    <EmbeddedResource Include="..\UiLibShim\bin\$(Configuration)\ui_lib.dll" Link="Assets\ui_lib.dll" LogicalName="$(RootNamespace).ui_lib.dll" />
   </ItemGroup>
 
   <!-- BEGIN mod-tools (managed block; replaced by `mod-tools setup`) -->

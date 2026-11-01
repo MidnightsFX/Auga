@@ -32,7 +32,7 @@ namespace Auga
     {
         public const string PluginID = "randyknapp.mods.auga";
         public const string PluginName = "Project Auga";
-        public const string Version = "1.4.0";
+        public const string Version = "1.4.1";
 
         public static readonly AugaAssets Assets = new AugaAssets();
         public static readonly AugaColors Colors = new AugaColors();
@@ -84,8 +84,6 @@ namespace Auga
             cfg = new ValConfig(Config);
             // All startup hooks go after the config, which the logging reads.
 
-            LoadDependencies();
-            APIManager.Patcher.Patch();
             LoadTranslations();
             LoadAssets();
 
@@ -101,7 +99,9 @@ namespace Auga
 
             _harmony = Harmony.CreateAndPatchAll(Assembly.GetExecutingAssembly(), PluginID);
 
-            // Soft-dependency compatibility, patched by reflection and only when that mod is installed.
+            // Soft-dependency compatibility, patched by reflection and only when that mod is installed. Each of these mods
+            // is a soft dependency, so BepInEx has already loaded it and created its plugin, and Apply takes the mod's
+            // types from that plugin's assembly.
             if (HasChatter)
                 Chatter.Apply(_harmony, chatterPlugin);
             if (HasSearsCatalog)

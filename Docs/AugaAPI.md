@@ -3,20 +3,22 @@
 Auga's API lets another mod check whether Auga is installed, build widgets in Auga's style, add to Auga's tooltips,
 add tabs and links to the player panel, add tabs to the workbench, and give its own panels the Auga look. Everything
 is static on `Auga.API`, in [`Auga/API/API.cs`](../Auga/API/API.cs); the types it hands out are in
-[`Auga/API/API.Common.cs`](../Auga/API/API.Common.cs). The API version is 1.7.0.
+[`Auga/API/API.Common.cs`](../Auga/API/API.Common.cs). The API version is 2.0.0.
 
 ## Setting up your mod
 
-Your mod carries a stub copy of the API. In the stub every method does nothing and returns `null` or `false`, and
-`IsLoaded()` returns `false`. When Auga is installed, it redirects your calls on the stub to the real methods while
-your mod loads. Calling the API is therefore safe whether or not Auga is installed.
+Your mod carries a stub copy of the API. Each method of the stub finds Auga at runtime, through BepInEx, and calls the
+real method with the same name and parameter types. Without Auga it does nothing and returns `null`, `false` or the
+type's default, and `IsLoaded()` returns `false`. Calling the API is therefore safe whether or not Auga is installed.
+Nothing in your mod is rewritten or patched.
 
 1. **Put the stub inside your own assembly.** Either compile the two API files into your mod with the `API` constant
-   defined, as [`AugaApiExample`](../AugaApiExample/AugaApiExample.csproj) does:
+   defined, as [`AugaApiExample`](../AugaApiExample/AugaApiExample.csproj) does, and `AUGA_API_INTERNAL` as well to
+   keep the stub's types internal to your mod:
 
    ```xml
    <PropertyGroup>
-     <DefineConstants>$(DefineConstants);API</DefineConstants>
+     <DefineConstants>$(DefineConstants);API;AUGA_API_INTERNAL</DefineConstants>
    </PropertyGroup>
    <ItemGroup>
      <Compile Include="path\to\Auga\API\API.cs" Link="AugaAPI\API.cs" />
@@ -26,11 +28,19 @@ your mod loads. Calling the API is therefore safe whether or not Auga is install
 
    or reference `AugaAPI.dll` (built by the `AugaAPI` project in this repository) and merge it into your mod with
    ILRepack and `Internalize`. Never ship `AugaAPI.dll` as a file of its own. The stub compiles against the game's
-   assemblies (Unity UI, TextMeshPro and `gui_framework` among them), which JotunnLib's references cover.
-2. **Declare a soft dependency on Auga.** This is required: Auga only redirects the calls of mods that list its GUID.
+   assemblies (Unity UI, TextMeshPro and `gui_framework` among them) and BepInEx, which JotunnLib's references cover.
+   Copy the whole files, not a cut-down mirror: the calls go through the forwarder at the end of `API.cs`.
+2. **Declare a soft dependency on Auga**, so your mod loads after it:
 
    ```csharp
    [BepInDependency("randyknapp.mods.auga", BepInDependency.DependencyFlags.SoftDependency)]
+   ```
+
+   A mod that depends on Auga also gets Auga's look on its UI automatically (see "Automatic restyling" below). If
+   your mod builds its Auga UI through this API, opt out first thing in `Awake`, before you load a bundle or build UI:
+
+   ```csharp
+   Auga.API.AutoRestyle_Exclude(PluginGUID);
    ```
 
 3. **Check `Auga.API.IsLoaded()` before you call anything else.**
@@ -56,7 +66,29 @@ public static class InventoryGui_Awake_Patch
 ```
 
 Methods marked *new in 1.x* were added during the port to Valheim 1.x. When an older Auga without them is installed,
-calls to them stay on the stub and do nothing.
+calls to them do nothing, return the default and write one warning to the log.
+
+## Automatic restyling
+
+Auga gives every mod that declares a `BepInDependency` on it (soft or hard) Auga's look at runtime, without that mod
+doing anything. Mods that don't depend on Auga are left alone and use the methods below to style themselves.
+
+- **The UI prefabs in its asset bundles.** When the mod loads a bundle, Auga notes it. Each GameObject whose root is a
+  `RectTransform` that the mod then loads from it is restyled on the asset itself, so every copy already has the look.
+- **The widgets it builds with Jotunn's GUIManager.** Panels, texts, buttons, toggles, input fields, dropdowns and
+  scroll views, restyled as GUIManager creates or styles them.
+- **What it adds to Auga's screens.** Objects added to the inventory, HUD or pause menu that carry one of the mod's
+  own components, restyled when the screen opens.
+
+All of it is in place: texts take Auga's fonts and colours, and backgrounds, buttons, scrollbars, sliders, toggles,
+input fields and dropdowns take Auga's sprites and colours. Nothing is created, moved, resized or destroyed, so every
+reference your mod holds stays valid. Auga writes one line to the log for each mod it restyles.
+
+| Method | What it does |
+| --- | --- |
+| `AutoRestyle_Exclude(string pluginGUID)` | Keeps Auga from restyling that mod. Call it first thing in `Awake`; what was restyled before the call stays restyled. (API 2.0.0) |
+
+Players can turn automatic restyling off with `[Compatibility] AutoRestyleDependents` in Auga's config.
 
 ## Colours
 
@@ -288,7 +320,12 @@ input field. Its fields are `null` until the crafting panel exists; the stub ret
 
 ## Compatibility between versions
 
-Your calls are matched to Auga by type name and method signature, so a signature in the API never changes once it is
-published; new behaviour arrives as new methods or overloads. A mod built against an older stub keeps working with a
-newer Auga. A mod built against a newer stub still loads with an older Auga, and the calls Auga does not have yet
-stay on the stub.
+Your calls are matched to Auga by method name and parameter types, so a signature in the API never changes once it
+is published; new behaviour arrives as new methods or overloads. A mod built against a newer stub still loads with an
+older Auga, and the calls Auga does not have yet do nothing.
+
+Stubs from before API 2.0 (copies of `API.cs` up to 1.7.0, and the mirrors mods kept of it) only did something
+because Auga rewrote the mods carrying them while they loaded. Auga 1.4.1 no longer does that, so with it those stubs
+return `null` and `false` and `IsLoaded()` is `false`. Replace such a copy with the current `API.cs` and
+`API.Common.cs`. Mods that embed the old reflection shim (`API.External.cs`, as Recycle N Reclaim and Better Archery
+1.9.8x do) find Auga on their own and keep working.

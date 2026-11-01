@@ -18,7 +18,7 @@ public static class SimpleRecycling
 
     internal static void Apply(Harmony harmony, PluginInfo plugin)
     {
-        var pluginType = Assembly.LoadFile(plugin.Location);
+        var pluginType = plugin.Instance.GetType().Assembly;
         _recyclingContainerButtonHolderType = pluginType.GetType("ABearCodes.Valheim.SimpleRecycling.UI.ContainerRecyclingButtonHolder");
         _recyclingStationButtonHolderType = pluginType.GetType("ABearCodes.Valheim.SimpleRecycling.UI.StationRecyclingTabHolder");
         var containerButtonMethod = AccessTools.Method(_recyclingContainerButtonHolderType, "SetupButton");

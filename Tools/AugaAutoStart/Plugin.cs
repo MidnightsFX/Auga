@@ -39,11 +39,15 @@ namespace AugaAutoStart
     //   AUGA_TEST_STATBARS   "1": give the health bar a fixed length, eat three foods and let two wear off, screenshot each and check the ticks' positions (at the end); "only": just that (with AUGA_TEST_ENEMIES=only as well, both)
     //   AUGA_TEST_FAVORITES  "1": mark test items with Item Favorite Framework (favorite, trash, favorite slots, a custom mark, the wishlist) and screenshot the inventory and their tooltips
     //   AUGA_TEST_LINKS      other mods' links in the tab row under the player name, by link ID ("AugaExample_Link,Clans_Button"): screenshot the row, click each link (and again, to close what it opened) and hide the first one for a moment
+    //   AUGA_TEST_AUTORESTYLE "1": only the checks of the API stub and of Auga restyling a dependent mod's UI (this helper is one), see Plugin.AutoRestyle.cs; "excluded": the same with this helper opted out, so nothing may be restyled
     // A missing AUGA_TEST_CHARACTER is created as a new local character.
-    [BepInPlugin("augatest.autostart", "Auga AutoStart (test)", "0.2.0")]
+    [BepInPlugin(PluginID, "Auga AutoStart (test)", "0.2.0")]
     [BepInDependency(AutoTest.Guid)]
-    public class Plugin : BaseUnityPlugin
+    // makes this helper a dependent of Auga, which AUGA_TEST_AUTORESTYLE relies on; it opts out otherwise (Awake)
+    [BepInDependency("randyknapp.mods.auga", BepInDependency.DependencyFlags.SoftDependency)]
+    public partial class Plugin : BaseUnityPlugin
     {
+        public const string PluginID = "augatest.autostart";
         private static string ShotDir => AutoTest.ShotDir;
         private float _nextSample;
         private static readonly Dictionary<string, string> _lastOverlays = new Dictionary<string, string>();
@@ -51,6 +55,9 @@ namespace AugaAutoStart
 
         private void Awake()
         {
+            // as a dependent, Auga would restyle UI this helper builds; only the restyling check wants that
+            if (Environment.GetEnvironmentVariable("AUGA_TEST_AUTORESTYLE") != "1")
+                Auga.API.AutoRestyle_Exclude(PluginID);
             // the harness reads its settings only once the main menu is up, after this
             foreach (var (auga, harness, fallback) in new[]
                      {
@@ -504,7 +511,7 @@ namespace AugaAutoStart
             foreach (var root in new Component[] { Hud.instance, InventoryGui.instance })
             {
                 if (root == null) continue;
-                // by type name: this plugin does not reference Unity.Auga
+                // by type name: this plugin does not reference Auga
                 foreach (var list in root.GetComponentsInChildren<MonoBehaviour>(false).Where(c => c != null && c.GetType().Name == "AugaStatusEffects"))
                 {
                     lists++;
@@ -617,6 +624,11 @@ namespace AugaAutoStart
         /// later steps need the weapon and hammer) and taken the 10_hud screenshot; it quits after this.</summary>
         private static IEnumerator Exercise()
         {
+            if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("AUGA_TEST_AUTORESTYLE")))
+            {
+                yield return AutoRestyleCheck();
+                yield break;
+            }
             if (Environment.GetEnvironmentVariable("AUGA_TEST_ENEMIES") == "only" || Environment.GetEnvironmentVariable("AUGA_TEST_STATBARS") == "only")
             {
                 yield return EnemyBars();
@@ -889,7 +901,7 @@ namespace AugaAutoStart
             Debug.Log("[AugaAutoStart] stat bar ticks");
             BepInEx.Configuration.ConfigEntry<int> fixedSize = null;
             Try(() => BepInEx.Bootstrap.Chainloader.PluginInfos["randyknapp.mods.auga"].Instance.Config.TryGetEntry("StatBars", "HealthBarFixedSize", out fixedSize));
-            // by type name: this plugin does not reference Unity.Auga, and Auga loads it itself
+            // by type name: this plugin does not reference Auga
             var bar = Hud.instance != null ? Hud.instance.transform.Find("hudroot/HealthBar")?.GetComponents<Component>().FirstOrDefault(c => c != null && c.GetType().Name == "AugaHealthBar") : null;
             if (fixedSize == null || bar == null)
             {
@@ -1435,7 +1447,7 @@ namespace AugaAutoStart
         /// <summary>Auga's compendium (pause menu): opened through its controller, every tab screenshotted, closed again.</summary>
         private static IEnumerator Compendium()
         {
-            var controllerType = AppDomain.CurrentDomain.GetAssemblies().FirstOrDefault(a => a.GetName().Name == "Unity.Auga")?.GetType("AugaUnity.AugaCompendiumController");
+            var controllerType = AppDomain.CurrentDomain.GetAssemblies().FirstOrDefault(a => a.GetName().Name == "Auga")?.GetType("AugaUnity.AugaCompendiumController");
             var controller = controllerType != null && Menu.instance != null ? Menu.instance.GetComponentInChildren(controllerType, true) : null;
             if (controller == null)
             {
@@ -1591,7 +1603,7 @@ namespace AugaAutoStart
             Debug.Log($"[AugaAutoStart] tooltip for {item.m_shared.m_name} made from {(prefab != null ? PathOf(prefab.transform) : "null")}, {scrollViews} scroll view(s)");
             if (scrollViews != 1)
                 AutoTest.Fail($"tooltip for {item.m_shared.m_name} has {scrollViews} scroll views");
-            // by type name: GetComponent(string) misses types from Unity.Auga, which Auga loads itself
+            // by type name: this plugin does not reference Auga
             if (prefab != null && prefab.GetComponents<Component>().Any(c => c != null && c.GetType().Name == "ComplexTooltip") && (prefab.transform.parent == null || prefab.transform.parent.name != "Auga Tooltip Templates"))
                 AutoTest.Fail($"tooltip for {item.m_shared.m_name} was made from {PathOf(prefab.transform)}, not Auga's copy with the scroll view");
             LogTree(tooltip.transform, 0, 3);

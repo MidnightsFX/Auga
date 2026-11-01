@@ -107,7 +107,7 @@
     <None Include="Assets\TextMesh Pro\Examples &amp; Extras\Fonts\Roboto-Bold - AFL.txt" />
     <None Include="Assets\TextMesh Pro\Examples &amp; Extras\Fonts\Anton OFL.txt" />
     <None Include="Assets\TextMesh Pro\Shaders\TMPro_Mobile.cginc" />
-    <None Include="Assets\ExternalLibraries\Unity.Auga.dll" />
+    <None Include="Assets\ExternalLibraries\Auga.dll" />
     <None Include="Assets\TextMesh Pro\Shaders\TMP_SDF SSD.shader" />
     <None Include="Assets\TextMesh Pro\Shaders\TMP_SDF-Surface-Mobile.shader" />
     <None Include="Assets\TextMesh Pro\Shaders\SDFFunctions.hlsl" />
@@ -629,8 +629,8 @@
       <HintPath>Packages\valheim\PlayFabParty.dll</HintPath>
       <Private>False</Private>
     </Reference>
-    <Reference Include="Unity.Auga">
-      <HintPath>Assets\ExternalLibraries\Unity.Auga.dll</HintPath>
+    <Reference Include="Auga">
+      <HintPath>Assets\ExternalLibraries\Auga.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="SoftReferenceableAssets">
@@ -639,10 +639,6 @@
     </Reference>
     <Reference Include="UnityPipeline.Microsoft.CodeAnalysis.CSharp">
       <HintPath>Library\PackageCache\com.unity.pipeline@ab05e9cd7f74\Runtime\Plugins\CodeAnalysis\UnityPipeline.Microsoft.CodeAnalysis.CSharp.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="ui_lib">
-      <HintPath>Packages\valheim\ui_lib.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="Mono.Security">

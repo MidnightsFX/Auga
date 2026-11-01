@@ -1,23 +1,23 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <!--
-    Unity.Auga.dll: the MonoBehaviour widgets used by the Auga prefabs. It is compiled here (against the game
-    assemblies), copied into the Unity project (AugaUnity\Assets\ExternalLibraries) so the prefabs can reference
-    the scripts, and embedded into Auga.dll which loads it at runtime.
+    The MonoBehaviour widgets used by the Auga prefabs (namespace AugaUnity). Auga.csproj compiles these same
+    sources into Auga.dll, which is where the game finds them. This project builds the Unity project's copy only:
+    AugaUnity\Assets\ExternalLibraries\Auga.dll, so the prefabs can reference the scripts. It is named Auga like the
+    plugin because a bundle names each script's assembly, and the game must find the scripts in the real Auga.dll.
+    It is never shipped.
     The game, Unity and BepInEx references come from the JotunnLib package, with the paths resolved in
     ..\Directory.Build.props.
   -->
   <PropertyGroup>
     <OutputType>Library</OutputType>
     <TargetFramework>net48</TargetFramework>
-    <AssemblyName>Unity.Auga</AssemblyName>
+    <AssemblyName>Auga</AssemblyName>
     <RootNamespace>AugaUnity</RootNamespace>
     <LangVersion>10</LangVersion>
     <Deterministic>true</Deterministic>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <!-- Auga.csproj embeds bin\<Configuration>\Unity.Auga.dll, so the path must not depend on the framework. -->
-    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <ProduceReferenceAssembly>false</ProduceReferenceAssembly>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
@@ -32,7 +32,7 @@
 
   <ItemGroup>
     <!-- An older copy of the Coffee.UIEffects scripts that has never been part of the build: the Unity project
-         carries the package itself, and only UIGradient\ is compiled here. -->
+         carries the package itself, and only UIGradient\ is compiled here. Auga.csproj leaves out the same files. -->
     <Compile Remove="UIDissolve.cs;UIEffect.cs;UIFlip.cs;UIGradient.cs;UIHsvModifier.cs" />
     <None Include="UIDissolve.cs;UIEffect.cs;UIFlip.cs;UIGradient.cs;UIHsvModifier.cs" />
   </ItemGroup>
@@ -44,7 +44,8 @@
     </Reference>
   </ItemDefinitionGroup>
 
-  <!-- Keep the copy inside the Unity project in sync so the prefabs keep their script references. -->
+  <!-- Keep the copy inside the Unity project in sync so the prefabs keep their script references. Its .meta keeps
+       the GUID the prefabs point at. -->
   <Target Name="CopyToUnityProject" AfterTargets="Build" Condition="Exists('$(MSBuildProjectDirectory)\..\AugaUnity\Assets\ExternalLibraries')">
     <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(MSBuildProjectDirectory)\..\AugaUnity\Assets\ExternalLibraries\" />
   </Target>

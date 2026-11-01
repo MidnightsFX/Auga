@@ -16,6 +16,8 @@ namespace AugaApiExample
         [UsedImplicitly]
         public void Awake()
         {
+            // this mod builds its Auga UI through the API, so Auga must not restyle it as well (first thing in Awake)
+            Auga.API.AutoRestyle_Exclude(PluginID);
             _harmony = Harmony.CreateAndPatchAll(Assembly.GetExecutingAssembly(), PluginID);
         }
 

@@ -12,7 +12,7 @@ public static class SearsCatalog
 
     internal static void Apply(Harmony harmony, BepInEx.PluginInfo plugin)
     {
-        SearsCatalogType = Assembly.LoadFile(plugin.Location);
+        SearsCatalogType = plugin.Instance.GetType().Assembly;
         HudPatch = SearsCatalogType.GetType("SearsCatalog.HudPatch");
 
         var awakePostfixMethod = AccessTools.Method(typeof(Hud), nameof(Hud.Awake));

@@ -2,8 +2,8 @@
 
   <!--
     Example mod that consumes the Auga API the way a third-party mod would: it compiles the API stub into its own
-    assembly (the same API.cs and API.Common.cs the AugaAPI project builds, with the API constant defined) and
-    soft-depends on Auga, so APIManager redirects the stub's calls to the real Auga.dll when Auga is installed.
+    assembly (the same API.cs and API.Common.cs the AugaAPI project builds, with the API constant defined), whose
+    methods find the real Auga.dll at runtime and forward to it. It soft-depends on Auga so it loads after it.
   -->
   <PropertyGroup>
     <OutputType>Library</OutputType>

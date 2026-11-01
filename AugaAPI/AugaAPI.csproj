@@ -4,7 +4,7 @@
   <!--
     AugaAPI.dll: the stub other mods reference and merge into their own assembly. It compiles the same API.cs and
     API.Common.cs the mod does, from ..\Auga\API, with the API constant defined, so every method body is the stub
-    branch of its #if. When Auga is installed, APIManager redirects those calls to the real Auga.dll.
+    branch of its #if: it finds the real Auga.dll at runtime and forwards the call to it (API.Forward).
   -->
   <PropertyGroup>
     <OutputType>Library</OutputType>

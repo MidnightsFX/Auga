@@ -11,8 +11,6 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AugaUnityLib", "AugaUnityLi
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AugaApiExample", "AugaApiExample\AugaApiExample.csproj", "{A97BC6C7-E833-4553-B375-9F13AA0E5017}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UiLibShim", "UiLibShim\UiLibShim.csproj", "{2F1C7E0B-8D3A-4B6E-9C21-5A7F3D9E1B44}"
-EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{3E8C5F21-9B47-4D6A-8E1F-7C2A4B9D0E15}"
 	ProjectSection(SolutionItems) = preProject
 		Directory.Build.props = Directory.Build.props
@@ -44,10 +42,6 @@ Global
 		{A97BC6C7-E833-4553-B375-9F13AA0E5017}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A97BC6C7-E833-4553-B375-9F13AA0E5017}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A97BC6C7-E833-4553-B375-9F13AA0E5017}.Release|Any CPU.Build.0 = Release|Any CPU
-		{2F1C7E0B-8D3A-4B6E-9C21-5A7F3D9E1B44}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{2F1C7E0B-8D3A-4B6E-9C21-5A7F3D9E1B44}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{2F1C7E0B-8D3A-4B6E-9C21-5A7F3D9E1B44}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{2F1C7E0B-8D3A-4B6E-9C21-5A7F3D9E1B44}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

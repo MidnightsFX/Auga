@@ -13,21 +13,40 @@ The facts below come from the sources next to this repo (`../Randy_Vapok_Valheim
 **Load order.** Auga requires Jotunn (a hard `BepInDependency`, for the server config sync) and declares a soft
 one on BetterTrader, MultiCraft, Chatter, Sears Catalog, SimpleRecycling and Jewelcrafting, so they load first and `Chainloader.PluginInfos` already lists them in
 `Auga.Awake`. Mods that use the Auga API declare a soft dependency on `randyknapp.mods.auga`, which makes them
-load after Auga and opts them in to APIManager's rewrite (see "Auga API" in `CLAUDE.md`). `API.IsLoaded()` is a
-constant: `true` inside `Auga.dll`, `false` in the stub. The old reflection shim's expensive `IsLoaded` (issue
-#155, `AppDomain.GetAssemblies` on every call) only survives in mods that still embed `API.External.cs`, such as
-Better Archery.
+load after Auga. Since 1.4.1 that dependency also makes them a *dependent*, whose UI Auga restyles at runtime unless
+it opts out (below). Auga no longer rewrites other mods while they load: APIManager, which did, is gone, and the API
+stub (API 2.0) finds Auga by itself. Stubs from before 2.0 (EpicLoot's, Equipment and Quick Slots', Clans' and
+AesirLineage's mirrors up to their current releases) relied on that rewrite and now stay on their stub answers until
+those mods copy the 2.0 stub. The old reflection shim (`API.External.cs`) finds Auga on its own; its expensive
+`IsLoaded` (issue #155, `AppDomain.GetAssemblies` on every call) survives in Recycle N Reclaim and Better Archery
+1.9.8x.
 
 **How other mods detect Auga.** Three ways, and each needs something different from us:
 
 | Detection | Mods | What they need |
 | --- | --- | --- |
-| `Auga.API.IsLoaded()` through the stub mirror | EpicLoot, Equipment and Quick Slots, Recycle N Reclaim | public signatures never change; the mirror in each mod matches `API.cs` |
+| `Auga.API.IsLoaded()` through an API stub | EpicLoot, Equipment and Quick Slots, Clans, AesirLineage (stubs from before 2.0, see above); Recycle N Reclaim and Better Archery 1.9.8x (the reflection shim) | public signatures never change, since both the 2.0 stub and the shim match by name and parameter types |
 | `Chainloader.PluginInfos.ContainsKey("randyknapp.mods.auga")` | Quick Stack Store, Better Archery, Valheim Admin Tool, Path of Valheiman, Carturs UI HUD, AAA Crafting, TradersExtended | the objects they then `Find` by vanilla name exist under the Auga hierarchy |
 | `[BepInIncompatibility("randyknapp.mods.auga")]` | AzuExtendedPlayerInventory, ExtraSlots, MyLittleUI, Almanac | nothing: BepInEx skips *them* when Auga is installed |
 
 Valheim Admin Tool reaches `Auga.AugaPanelRestyler` and `Auga.RestyleOptions` by reflection, not through the
-API. Those two names stay public and stable; `API.Panel_Restyle` is the supported entry for new code.
+API. Those two names stay public and stable; `API.Panel_Restyle` is the supported entry for new code. It looks up
+`API.Panel_Create` and `API.SmallButton_Create` by name alone, so neither may ever get an overload.
+
+**Who Auga changes, and how.** (1.4.1)
+
+- **Dependents**, mods that declare a `BepInDependency` on Auga, get Auga's look automatically
+  (`Auga/Modules/Core/AutoRestyle/`): the UI prefabs in the asset bundles they load, the widgets they build with
+  Jotunn's GUIManager, and what they add to the inventory, HUD and pause menu. The restyling only changes fonts,
+  sprites and colours on their own objects (`AugaPanelRestyler.RestyleInPlace`). A dependent that styles itself
+  calls `API.AutoRestyle_Exclude` first in `Awake`. Valheim Admin Tool is excluded by Auga itself, since it styles
+  itself by reflection. Players can turn it all off with `[Compatibility] AutoRestyleDependents`.
+- **The named exceptions** in `Auga/Compat/` (Chatter, MultiCraft, SimpleRecycling, Jewelcrafting, Sears Catalog)
+  do not depend on Auga, which depends on them instead. Auga patches their UI by hand, as before. No other mod that
+  does not depend on Auga gets compat code of this kind.
+- **Every other mod** is left alone, apart from what the rest of this section lists (vanilla names kept, objects
+  adopted onto replacements, other mods' objects already inside a vanilla screen when Auga restyles it). To get
+  Auga's look, it calls the API.
 
 **What Auga does to keep other mods' patches working** (most of it from commit `844c8a0`):
 
@@ -93,14 +112,14 @@ means the compatibility code exists but nobody has run it on 1.x since the port.
 | TargetPortal | `org.bepinex.plugins.targetportal` | favourites list on the map, cloned key hints | tested 2026-10-25 (`Minimap_Setup`) |
 | PlantEasily | `advize.PlantEasily` | HUD text | tested 2026-10-25 |
 | Item Favorite Framework | `MidnightsFX.ItemFavoriteFramework` | an `InventoryGrid.UpdateGui` postfix hangs its frames, trash veil, mark icon and wishlist heart on each `InventoryElement`; postfixes on `ItemData.GetTooltip` add its tooltip lines | tested 2026-10-29 (`AUGA_TEST_FAVORITES`): marks draw on Auga's player and container slots; their tooltip lines needed the two `ComplexTooltip` fixes above; a custom mark's icon covers the hotbar number, as in vanilla |
-| Clans | `MidnightsFX.Clans` | API mirror (`Compat/AugaAPI.cs`): registers its Clan and activity tracker buttons with `PlayerPanel_AddLink`; leaves Auga's PvP toggle in the PvP tab | tested 2026-10-30 (`AUGA_TEST_LINKS=Clans_Button`): the Clan button sits in the tab row, shows its tooltip and opens the Clans window above Auga's panels; the tracker button stays hidden with no activity under way (its menu was not opened) |
+| Clans | `MidnightsFX.Clans` | API mirror from before 2.0 (`Compat/AugaAPI.cs`), to be replaced by the 2.0 stub with an opt-out: registers its Clan and activity tracker buttons with `PlayerPanel_AddLink`; leaves Auga's PvP toggle in the PvP tab | tested 2026-10-30 (`AUGA_TEST_LINKS=Clans_Button`): the Clan button sits in the tab row, shows its tooltip and opens the Clans window above Auga's panels; the tracker button stays hidden with no activity under way (its menu was not opened) |
 | Jewelcrafting | `org.bepinex.plugins.jewelcrafting` | `Auga/Compat/Jewelcrafting.cs` transpiles JC's nested patch types; hotkey bar left to JC | untested; a failed lookup sleeps 15 s at startup |
 | Chatter | `redseiko.valheim.chatter` | `Auga/Compat/Chatter.cs` swaps `ToggleCell` for Auga toggles | untested |
 | Sears Catalog | `redseiko.valheim.searscatalog` | `Auga/Compat/SearsCatalog.cs` nudges `m_pieceListRoot` 3 px | probably obsolete since the build menu moved to `BuildUIV2` (`4e6f966`) |
 | MultiCraft | `maximods.valheim.multicraft` | `Auga/Compat/MultiCraft.cs` patches `MultiCraft_UI` and `MultiCraft_Logic` | untested; issues #141, #220 |
 | SimpleRecycling | `com.github.abearcodes.valheim.simplerecycling` | `Auga/Compat/SimpleRecycling.cs`, a vanilla workbench tab | untested; the mod is abandoned, Recycle N Reclaim replaced it |
 | BetterTrader | `Menthus.bepinex.plugins.BetterTrader` | branch in `Store_Setup.cs` | untested |
-| Recycle N Reclaim | `Azumatt.Recycle_N_Reclaim` | `API.IsLoaded`, vanilla workbench tab, container button | untested; in most play profiles |
+| Recycle N Reclaim | `Azumatt.Recycle_N_Reclaim` | old reflection shim (`AugaAPI.dll` merged in): `API.IsLoaded`, vanilla workbench tab, container button; no dependency on Auga, so not restyled | untested; in most play profiles |
 | Quick Stack Store | `goldenrevolver.quick_stack_store` | `PluginInfos`; copes with a missing "take all" button | untested; issue #145 says its buttons vanish |
 | AAA Crafting | `Azumatt.AzuAntiArthriticCrafting` | references Auga's GUID; wants the crafting input field | untested; issue #144, Auga 1.3.12 added `GetCraftingControls` for it |
 | Better Archery | `ishid4.mods.betterarchery` | old reflection shim (`API.External.cs` copy) and `PluginInfos` | untested; issue #52 (quiver), EAQS has its own compat |
@@ -108,7 +127,7 @@ means the compatibility code exists but nobody has run it on 1.x since the port.
 | Adventure Backpacks | `vapok.mods.adventurebackpacks` | 13 `InventoryGui` patches, `KeyHints`, `Hud`, `GuiBar` | untested |
 | TradersExtended | `shudnal.TradersExtended` | references Auga's GUID | untested; issue #210 (cursor stuck) |
 | Path of Valheiman | `treextr.pathofvalheiman` | lists Auga as a UI mod and warns; writes `Player.m_inventory.m_height` itself | untested |
-| Valheim Admin Tool | `com.icecub.valheimadmintool` | reflection on `AugaPanelRestyler` and `RestyleOptions` | works while those names stay |
+| Valheim Admin Tool | `com.icecub.valheimadmintool` | reflection on `AugaPanelRestyler` and `RestyleOptions`; a dependent that Auga excludes from automatic restyling itself | works while those names stay |
 | StarLevelSystem | `MidnightsFX.StarLevelSystem` | clones the enemy HUD's `level_2/star` for its star rows, restacks boss bars, transpiles `EnemyHud.UpdateHuds` | its `EnemyHud.Awake` postfix threw on Auga's star and left no enemy health bars (Player.log, 2026-10-29); vanilla star names fixed the same day, built, not yet run in game. Since the 1.4.0 bar restyle (`EnemyHudBars.cs`) SLS's boss bar sizing (`SetBossBarWidth`: the `bar` sizes, `bkg`/`darken` moved into `Background`) breaks the slanted boss bar; SLS is being changed to leave the enemy HUD to Auga and expose an API, see below |
 | MinimalStatusEffects | `randyknapp.mods.minimalstatuseffects` | postfix on `Hud.UpdateStatusEffects`, lays out vanilla's entries | inert under Auga: the prefix skips vanilla, Auga's own list is drawn by `AugaStatusEffects` |
 | Cheb's Necromancy / Mercenaries | | clone key hint rows | untested; issue #204, the key hint watcher was built for this |
@@ -122,13 +141,13 @@ means the compatibility code exists but nobody has run it on 1.x since the port.
 
 ### EpicLoot
 
-1. **Refresh the API mirror.** `EpicLoot/src/integrations/AugaAPI.cs` and `AugaAPI.Common.cs` were copied on
-   2026-09-24. Since then `API.cs` gained `GetBoldFontAsset`, `GetSemiBoldFontAsset`, `GetRegularFontAsset`,
-   `Panel_Restyle`, `Text_Restyle`, `Scrollbar_Restyle`, `Slider_Restyle` and `Toggle_Restyle` (`844c8a0`), and the
-   mirror never had `GetCraftingControls` or the `CraftingControls` class from 1.6.0. The API version is now 1.7.0
-   (`AugaAPI/Properties/AssemblyInfo.cs`), which also added the `PlayerPanel_*Link` methods; rebuild `AugaAPI.dll`,
-   then copy the signatures over. `EpicLootAuga.FixFonts` only restyles legacy `Text`; the TMP labels on the enchanting table,
-   temper panel and tabs can use the font asset getters or `Text_Restyle` once the mirror has them.
+1. **Replace the API mirror with the 2.0 stub.** Without it EpicLoot has no Auga support from Auga 1.4.1 on (see
+   "Load order" above). Swap `EpicLoot/src/integrations/AugaAPI.cs` and `AugaAPI.Common.cs` for the current `API.cs`
+   and `API.Common.cs`, compiled with `API;AUGA_API_INTERNAL`, and call `Auga.API.AutoRestyle_Exclude` with
+   EpicLoot's GUID first in `Awake`. That also brings the methods the 1.6.0 mirror lacks: the font asset getters,
+   the `*_Restyle` methods, `GetCraftingControls` and the `PlayerPanel_*Link` methods. `EpicLootAuga.FixFonts` only
+   restyles legacy `Text`; the TMP labels on the enchanting table, temper panel and tabs can then use the font asset
+   getters or `Text_Restyle`.
 2. **Run the new tooltip code under Auga.** EpicLoot's item tooltip was rebuilt on 2026-10-24 (gather, edit,
    draw) and has not been seen with Auga's `ComplexTooltip` since. Check with `AUGA_TEST_MAGIC`: rarity
    background, subtitle, set text, the augment choice dialog and the craft success panel (both are Auga results
@@ -142,14 +161,15 @@ means the compatibility code exists but nobody has run it on 1.x since the port.
    "Lore", at index 0 under Auga, and finds `Texts_frame`, `TextArea` and `Closebutton`. Auga must keep those names
    and the "Lore" suffix on the lore dialog.
 6. **Smoke test flag.** `AUGA_TEST_EPICLOOT_HASAUGA` forces `EpicLoot.HasAuga`; its comment says EpicLoot never
-   sets the flag, which is no longer true (`EpicLoot.InitializeAuga` sets it from `IsLoaded()`). Keep the flag as a
-   fallback for a failed APIManager rewrite and fix the comment.
+   sets the flag, which is no longer true (`EpicLoot.InitializeAuga` sets it from `IsLoaded()`). Keep the flag for
+   EpicLoot releases that still carry a stub from before 2.0, and fix the comment.
 7. EpicLoot's stat preprocessor never returns `null` because the old Auga threw on it. Since `844c8a0` a `null`
    hides the line, so EpicLoot may use it.
 
 ### Equipment and Quick Slots
 
-1. **Refresh the API mirror** (`EquipmentAndQuickSlots/src/Auga/AugaAPI*.cs`), same gap as EpicLoot's.
+1. **Replace the API mirror with the 2.0 stub** (`EquipmentAndQuickSlots/src/Auga/AugaAPI*.cs`) and opt out, as
+   for EpicLoot.
 2. **Panel layout.** `src/AugaPanel.cs` lays the equipment diamond, quick row and API columns out from constants
    (64 px cell, 70 px pitch, 20 px gap to the player panel) written against the Auga player panel. The smoke
    test's inventory step logs where `EAQS`, `EaqsSlotRoot`, `Divider` and `Paperdolls` land; look at that

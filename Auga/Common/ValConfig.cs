@@ -47,6 +47,8 @@ namespace Auga
 
         public static ConfigEntry<bool> EnemyHudStarsBelowBar;
 
+        public static ConfigEntry<bool> AutoRestyleDependents;
+
         // Server synced config entries
         public static ConfigEntry<bool> UseAugaTrash;
         public static ConfigEntry<float> ConfigPollIntervalSeconds;
@@ -163,6 +165,10 @@ namespace Auga
 
             EnemyHudStarsBelowBar = Config.Bind("EnemyHud", "StarsBelowHealthBar", true, "Show an enemy's level stars just below its health bar. If false, they are drawn on the bar, which leaves room for mods that write text below it.");
             EnemyHudStarsBelowBar.SettingChanged += (_, _) => EnemyHudBars.ApplyStarSetting();
+
+            // read whenever a dependent mod loads a bundle or builds UI (Modules/Core/AutoRestyle); what is already
+            // restyled stays so until the game restarts
+            AutoRestyleDependents = Config.Bind("Compatibility", "AutoRestyleDependents", true, "Give mods that depend on Auga Auga's look: the UI prefabs in their asset bundles, the widgets they build with Jotunn's GUIManager and what they add to Auga's screens. A mod that styles itself opts out through the Auga API. Turn this off if a mod's UI looks wrong with it.");
 
             // Server synced. The trash button deletes items outright, which is a server's call rather than a display
             // preference.
