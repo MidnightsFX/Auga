@@ -48,7 +48,7 @@ API. Those two names stay public and stable; `API.Panel_Restyle` is the supporte
   adopted onto replacements, other mods' objects already inside a vanilla screen when Auga restyles it). To get
   Auga's look, it calls the API.
 
-**What Auga does to keep other mods' patches working** (most of it from commit `844c8a0`):
+**What Auga does to keep other mods' patches working** (most of it from commit `686ad3a`):
 
 - `UiAwakeGuards`: Harmony finalizers on `InventoryGui.Awake`, `Hud.Awake`, `KeyHints.Start`,
   `Minimap.Awake/Start`, `TextsDialog.Awake`, `StoreGui.Awake`, `Menu.Start` and `EnemyHud.Awake` log an exception
@@ -115,7 +115,7 @@ means the compatibility code exists but nobody has run it on 1.x since the port.
 | Clans | `MidnightsFX.Clans` | API mirror from before 2.0 (`Compat/AugaAPI.cs`), to be replaced by the 2.0 stub with an opt-out: registers its Clan and activity tracker buttons with `PlayerPanel_AddLink`; leaves Auga's PvP toggle in the PvP tab | tested 2026-10-30 (`AUGA_TEST_LINKS=Clans_Button`): the Clan button sits in the tab row, shows its tooltip and opens the Clans window above Auga's panels; the tracker button stays hidden with no activity under way (its menu was not opened) |
 | Jewelcrafting | `org.bepinex.plugins.jewelcrafting` | `Auga/Compat/Jewelcrafting.cs` transpiles JC's nested patch types; hotkey bar left to JC | untested; a failed lookup sleeps 15 s at startup |
 | Chatter | `redseiko.valheim.chatter` | `Auga/Compat/Chatter.cs` swaps `ToggleCell` for Auga toggles | untested |
-| Sears Catalog | `redseiko.valheim.searscatalog` | `Auga/Compat/SearsCatalog.cs` nudges `m_pieceListRoot` 3 px | probably obsolete since the build menu moved to `BuildUIV2` (`4e6f966`) |
+| Sears Catalog | `redseiko.valheim.searscatalog` | `Auga/Compat/SearsCatalog.cs` nudges `m_pieceListRoot` 3 px | probably obsolete since the build menu moved to `BuildUIV2` (`2dade4d`) |
 | MultiCraft | `maximods.valheim.multicraft` | `Auga/Compat/MultiCraft.cs` patches `MultiCraft_UI` and `MultiCraft_Logic` | untested; issues #141, #220 |
 | SimpleRecycling | `com.github.abearcodes.valheim.simplerecycling` | `Auga/Compat/SimpleRecycling.cs`, a vanilla workbench tab | untested; the mod is abandoned, Recycle N Reclaim replaced it |
 | BetterTrader | `Menthus.bepinex.plugins.BetterTrader` | branch in `Store_Setup.cs` | untested |
@@ -163,7 +163,7 @@ means the compatibility code exists but nobody has run it on 1.x since the port.
 6. **Smoke test flag.** `AUGA_TEST_EPICLOOT_HASAUGA` forces `EpicLoot.HasAuga`; its comment says EpicLoot never
    sets the flag, which is no longer true (`EpicLoot.InitializeAuga` sets it from `IsLoaded()`). Keep the flag for
    EpicLoot releases that still carry a stub from before 2.0, and fix the comment.
-7. EpicLoot's stat preprocessor never returns `null` because the old Auga threw on it. Since `844c8a0` a `null`
+7. EpicLoot's stat preprocessor never returns `null` because the old Auga threw on it. Since `686ad3a` a `null`
    hides the line, so EpicLoot may use it.
 
 ### Equipment and Quick Slots

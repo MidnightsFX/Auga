@@ -1,16 +1,16 @@
 ManifestFileVersion: 0
 UnityVersion: 6000.0.75f1
-CRC: 3232809740
+CRC: 1879702126
 Hashes:
   AssetFileHash:
     serializedVersion: 2
-    Hash: 7a0cacb7128858d0898d86f46c8a60db
+    Hash: 70c9fa9a9a4b1ff9a2bb67a22b030100
   TypeTreeHash:
     serializedVersion: 2
     Hash: 55318a8fe201a5e0eeb147a3c6302909
   IncrementalBuildHash:
     serializedVersion: 2
-    Hash: 5c4286b278b677a0366d81cd00b59205
+    Hash: 838b90634ff3a5e2587b1929b6e4dbab
 HashAppended: 0
 ClassTypes:
 - Class: 1
@@ -521,9 +521,9 @@ SerializeReferenceClassIdentifiers:
 Assets:
 - Assets/Sprites/HUD/legacy_save.png
 - Assets/Prefabs/AugaTextViewer.prefab
-- Assets/Prefabs/ActiveEffectItem_HUD_Standard.prefab
-- Assets/Prefabs/AugaTextInput.prefab
 - Assets/Prefabs/AugaLogoSmall.prefab
+- Assets/Prefabs/AugaTextInput.prefab
+- Assets/Prefabs/ActiveEffectItem_HUD_Standard.prefab
 - Assets/Sprites/MainMenu/status_refresh.png
 - Assets/Sprites/MainMenu/status_unknown.png
 - Assets/Prefabs/ZSFX/sfx_gui_craftitem_cauldron.prefab
@@ -536,7 +536,6 @@ Assets:
 - Assets/Sprites/MainMenu/status.png
 - Assets/Prefabs/TabButton_Skills.prefab
 - Assets/Prefabs/DiamondButton.prefab
-- Assets/Fonts/SourceSansPro-Bold SDF-old.asset
 - Assets/Prefabs/ZSFX/sfx_gui_craftitem_end.prefab
 - Assets/Prefabs/ButtonToggle.prefab
 - Assets/Prefabs/AugaSettings.prefab
@@ -555,20 +554,17 @@ Assets:
 - Assets/Prefabs/ZSFX/sfx_gui_sell.prefab
 - Assets/Prefabs/ZSFX/sfx_gui_craftitem_forge.prefab
 - Assets/Sprites/HUD/cloud.png
-- Assets/Prefabs/ZSFX/sfx_gui_inventory_close.prefab
 - Assets/Prefabs/LeftKnot.prefab
+- Assets/Prefabs/ZSFX/sfx_gui_inventory_close.prefab
 - Assets/Prefabs/LabeledKeybind_HUD.prefab
 - Assets/Fonts/SourceSansPro-Bold.ttf
 - Assets/Prefabs/AugaBiomeFoundMessage.prefab
 - Assets/Prefabs/TabContent_Skills.prefab
 - Assets/Prefabs/PlayerStatBlock.prefab
-- Assets/Fonts/Norsebold-RASTER-HINTED.asset
 - Assets/Prefabs/AugaPanelBase.prefab
 - Assets/Prefabs/ZSFX/sfx_gui_craftitem.prefab
 - Assets/Prefabs/LabeledSliderWithValue.prefab
-- Assets/Fonts/Norse-Old.asset
 - Assets/Fonts/Noto Sans CJK Regular SDF.asset
-- Assets/Fonts/SourceSansPro-SemiBoldItalic.ttf
 - Assets/Prefabs/MenuButton.prefab
 - Assets/Prefabs/AugaStoreScreen.prefab
 - Assets/Prefabs/ZSFX/sfx_gui_craftitem_workbench_end.prefab
@@ -576,14 +572,12 @@ Assets:
 - Assets/Prefabs/MainMenu.prefab
 - Assets/Prefabs/ButtonDiamond.prefab
 - Assets/Prefabs/ChangeLog.prefab
-- Assets/Fonts/SourceSansPro-SemiBoldItalic-old.asset
+- Assets/Prefabs/TabContent_MessageLog.prefab
 - Assets/Prefabs/LabeledCheckbox.prefab
 - Assets/Prefabs/BuildHudElement.prefab
-- Assets/Prefabs/TabContent_MessageLog.prefab
 - Assets/Prefabs/VR/LeftWristMountUI.prefab
 - Assets/Prefabs/AugaMessageHud.prefab
 - Assets/Prefabs/TabButton_Base.prefab
-- Assets/Fonts/SourceSansPro-Regular-old.asset
 - Assets/Prefabs/BuildHud.prefab
 - Assets/Fonts/Norsebold SDF.asset
 - Assets/Prefabs/AugaChat.prefab
@@ -593,10 +587,9 @@ Assets:
 - Assets/Sprites/Cursor.png
 - Assets/Prefabs/InventoryElement.prefab
 - Assets/Sprites/HUD/save_icon.png
-- Assets/Fonts/Norsebold-RASTER-HINTED-old.asset
+- Assets/Fonts/SourceSansPro-Bold-old.asset
 - Assets/Prefabs/AugaDamageText.prefab
 - Assets/Prefabs/AugaLogo.prefab
-- Assets/Fonts/SourceSansPro-Bold-old.asset
 - Assets/Fonts/Norsebold-old.asset
 - Assets/Prefabs/ButtonSmall.prefab
 - Assets/Prefabs/Inventory_screen.prefab
