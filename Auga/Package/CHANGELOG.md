@@ -1,3 +1,7 @@
+### 1.4.2
+* Menus built with Jotunn no longer freeze the game as they open on large mod lists.
+* Various compatibility improvements when used with Epicloots custom UIs
+
 ### 1.4.1
 * Removes older dynamic patching of external mods
     * UI changes now happen at runtime instead of by rebuilding other mods     

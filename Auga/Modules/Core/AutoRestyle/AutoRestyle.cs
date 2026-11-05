@@ -5,7 +5,6 @@ using System.Linq;
 using System.Reflection;
 using BepInEx;
 using BepInEx.Bootstrap;
-using HarmonyLib;
 using UnityEngine;
 using Debug = UnityEngine.Debug;
 
@@ -31,6 +30,7 @@ namespace Auga
         // builds UI through, and the engine, runtime and loader
         private static readonly string[] PassThrough = { "Auga", "Jotunn", "0Harmony", "BepInEx", "mscorlib", "netstandard" };
         private static readonly string[] PassThroughPrefixes = { "UnityEngine", "Unity.", "System", "MonoMod", "Mono." };
+        private static readonly Dictionary<Assembly, bool> PassThroughAssemblies = new Dictionary<Assembly, bool>();
 
         public static bool Enabled => ValConfig.AutoRestyleDependents == null || ValConfig.AutoRestyleDependents.Value;
 
@@ -67,33 +67,39 @@ namespace Auga
         /// <summary>
         /// The mod behind the current call: the first frame that is not Auga, Jotunn, Unity, the runtime or the
         /// loader decides, and it counts only when it belongs to a dependent that may be restyled. A Harmony patch
-        /// replaces its method's frame with a dynamic one, which GetMethodFromStackframe maps back.
+        /// replaces its method's frame with a dynamic one, which Mono reports under the patched method's own type, so
+        /// the frame already names the real assembly. Every Jotunn style call of every mod comes through here, so this
+        /// reads only the frames it needs and stays away from Harmony.GetMethodFromStackframe: that scans every patched
+        /// method, throws when the frame is not one, and takes milliseconds per frame on a large mod list. It also
+        /// returns the replacement, whose DeclaringType is null, so it cannot tell whose frame a patched one is.
         /// </summary>
         internal static PluginInfo Caller()
         {
             if (!Enabled)
                 return null;
-            var frames = new StackTrace(2, false).GetFrames();
-            if (frames == null)
-                return null;
-            foreach (var frame in frames)
+            // frame 0 is this method and frame 1 the patch that called it; a frame with no method is past the end of the stack
+            for (var skip = 2; ; skip++)
             {
-                MethodBase method;
-                try { method = Harmony.GetMethodFromStackframe(frame); }
-                catch (Exception) { method = frame.GetMethod(); }
-                var assembly = method?.DeclaringType?.Assembly;
+                var method = new StackFrame(skip, false).GetMethod();
+                if (method == null)
+                    return null;
+                var assembly = method.DeclaringType?.Assembly;
                 if (assembly == null || assembly.IsDynamic || IsPassThrough(assembly))
                     continue;
                 var owner = DependentOf(assembly);
                 return ShouldRestyle(owner) ? owner : null;
             }
-            return null;
         }
 
         private static bool IsPassThrough(Assembly assembly)
         {
-            var name = assembly.GetName().Name;
-            return PassThrough.Contains(name) || PassThroughPrefixes.Any(name.StartsWith);
+            if (!PassThroughAssemblies.TryGetValue(assembly, out var passThrough))
+            {
+                var name = assembly.GetName().Name;
+                passThrough = PassThrough.Contains(name) || PassThroughPrefixes.Any(name.StartsWith);
+                PassThroughAssemblies[assembly] = passThrough;
+            }
+            return passThrough;
         }
 
         internal static bool ShouldRestyle(PluginInfo owner)

@@ -14,11 +14,13 @@ namespace Auga
     public static class Compendium_Setup
     {
         /// <summary>
-        /// Mods that extend the compendium expect vanilla's layout on every TextsDialog: EpicLoot's pages look for
-        /// "Texts_frame" with a "Closebutton" and a "TextArea" (ScrollArea/Content) under it the moment the dialog
-        /// wakes up, and fail without them. The page content that holds the dialog's text area takes the frame's
-        /// name and gets a hidden close button placeholder; a dialog without a text area gets an inactive frame with
-        /// the expected pieces.
+        /// Mods that extend the compendium expect vanilla's layout on every TextsDialog: older EpicLoot releases look
+        /// for "Texts_frame" with a "Closebutton" and a "TextArea" (ScrollArea/Content) under it the moment the dialog
+        /// wakes up, and throw without them. A page content that holds the dialog's text area would take the frame's
+        /// name and get a hidden close button placeholder. AugaTextsDialog has its TextArea directly under the root,
+        /// so both compendium dialogs get an inactive frame with the expected pieces instead. Whatever a mod builds
+        /// into that frame is not shown: such a mod has to look for the TextArea under the root first, as EpicLoot
+        /// does from 0.15.7.
         /// </summary>
         public static void SetupTextsDialogs(AugaCompendiumController controller)
         {

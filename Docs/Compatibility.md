@@ -106,7 +106,7 @@ means the compatibility code exists but nobody has run it on 1.x since the port.
 
 | Mod | GUID | How it meets Auga | 1.x status |
 | --- | --- | --- | --- |
-| EpicLoot | `randyknapp.mods.epicloot` | API mirror, tooltip listener and stat preprocessor, restyles its own panels | tested 2026-10-25; to-do list below |
+| EpicLoot | `randyknapp.mods.epicloot` | API mirror, tooltip listener and stat preprocessor, restyles its own panels | tested 2026-11-04; to-do list below |
 | Equipment and Quick Slots | `randyknapp.mods.equipmentandquickslots` | API mirror, `AugaPanel` beside the player panel | tested 2026-10-25; to-do list below |
 | AAA Build Menu | `Azumatt.AAABuildMenu` | patches the build menu Auga restyles in place | tested 2026-10-25 |
 | TargetPortal | `org.bepinex.plugins.targetportal` | favourites list on the map, cloned key hints | tested 2026-10-25 (`Minimap_Setup`) |
@@ -158,8 +158,10 @@ means the compatibility code exists but nobody has run it on 1.x since the port.
    skip when `HasAuga` because Auga draws its own health bar. Either accept that or give Auga's bar a hook
    EpicLoot can call.
 5. **Compendium contract.** EpicLoot adds its pages to every `TextsDialog` except the one whose name contains
-   "Lore", at index 0 under Auga, and finds `Texts_frame`, `TextArea` and `Closebutton`. Auga must keep those names
-   and the "Lore" suffix on the lore dialog.
+   "Lore", at index 0 under Auga. From 0.15.7 a dialog with `TextArea` directly under its root counts as an Auga
+   dialog, and EpicLoot ignores the empty, inactive `Texts_frame` (with `Closebutton`) Auga hangs on each one. 0.15.6
+   builds its pages into that frame, so they stay blank, and older releases throw without it. Auga must keep
+   `TextArea` under the root, those names and the "Lore" suffix on the lore dialog.
 6. **Smoke test flag.** `AUGA_TEST_EPICLOOT_HASAUGA` forces `EpicLoot.HasAuga`; its comment says EpicLoot never
    sets the flag, which is no longer true (`EpicLoot.InitializeAuga` sets it from `IsLoaded()`). Keep the flag for
    EpicLoot releases that still carry a stub from before 2.0, and fix the comment.

@@ -31,7 +31,7 @@ namespace AugaAutoStart
     //   AUGA_TEST_CHARSELECT "1": screenshot the character selection, the new character screen, the manage saves dialog and the remove dialog, then quit
     //   AUGA_TEST_STARTGAME  "1": screenshot the world list, the new world dialog, the server list and the add server dialog, then quit
     //   AUGA_TEST_EPICLOOT_HASAUGA "1": force EpicLoot.HasAuga = true as soon as EpicLoot is loaded (its Auga branches are otherwise off)
-    //   AUGA_TEST_ENCHANTING "1": spawn an EpicLoot enchanting table, open its UI and screenshot every tab (after the magic items)
+    //   AUGA_TEST_ENCHANTING "1": spawn an EpicLoot enchanting table, open its UI, check every tab fits the tab bar and screenshot them (part of the AUGA_TEST_MAGIC step, so that has to be set too)
     //   AUGA_TEST_MENUTOUR   "1": also open the changelog, user agreement, credits, settings and cinematics from the main menu (default: only start the game)
     //   AUGA_TEST_MAGIC      "1": spawn EpicLoot magic items of every rarity (magicitem console command), pick them up and screenshot each one's inventory tooltip; or "Rarity:Item;Set:SetID;..." to choose them
     //   AUGA_TEST_CROSSPLAY  "1": host the test world as a password-protected crossplay server (it gets a join code) and log the join code overlay's timeline
@@ -1454,6 +1454,15 @@ namespace AugaAutoStart
                 Debug.LogWarning("[AugaAutoStart] no AugaCompendiumController under the menu");
                 yield break;
             }
+            // the test character knows no lore and few tutorials, and these lists have little to do until they hold
+            // something; set directly, because AddKnownText puts a message on the HUD for each, and enough that both
+            // lists have to scroll
+            var tutorials = controllerType.GetField("Compendium")?.GetValue(controller) as TextsDialog;
+            var lore = controllerType.GetField("LoreCompendium")?.GetValue(controller) as TextsDialog;
+            var testLabels = Enumerable.Range(1, CompendiumTestTexts)
+                .SelectMany(n => new[] { $"$lore_augatest{n:00}: Test lore {n:00}", $"$tutorial_augatest{n:00}: Test tutorial {n:00}" })
+                .ToList();
+            Try(() => testLabels.ForEach(label => Player.m_localPlayer.m_knownTexts[label] = "Text of " + label));
             Debug.Log("[AugaAutoStart] open compendium");
             Try(() => controllerType.GetMethod("ShowCompendium").Invoke(controller, null));
             yield return new WaitForSecondsRealtime(1.5f);
@@ -1468,10 +1477,167 @@ namespace AugaAutoStart
                 Try(() => tabHandler.SetActiveTab(i));
                 yield return new WaitForSecondsRealtime(1f);
                 Shot("13c_compendium_" + i + "_" + name);
+                foreach (var dialog in new[] { tutorials, lore })
+                {
+                    if (dialog != null && tab.m_page != null && dialog.transform.IsChildOf(tab.m_page))
+                        Try(() => CheckTextsList(dialog, name, "first opening"));
+                }
                 yield return new WaitForSecondsRealtime(0.5f);
             }
+            yield return CompendiumEpicLootPages(tutorials, tabHandler);
             Try(() => controllerType.GetMethod("HideCompendium").Invoke(controller, null));
             yield return new WaitForSecondsRealtime(1f);
+            yield return CompendiumReopen(controllerType, controller, tabHandler, tutorials, lore);
+            Try(() => testLabels.ForEach(label => Player.m_localPlayer.m_knownTexts.Remove(label)));
+        }
+
+        private const int CompendiumTestTexts = 30;
+
+        /// <summary>A row well below the end of the view, near the end of the list.</summary>
+        private const int CompendiumFarRow = 25;
+
+        /// <summary>A text dialog's tab once it is showing: it has to list the known texts, show the first one, and have that one's whole row in view.</summary>
+        private static void CheckTextsList(TextsDialog dialog, string what, string when)
+        {
+            var count = dialog.m_texts.Count;
+            var topic = dialog.m_textAreaTopic != null ? dialog.m_textAreaTopic.text : null;
+            var body = dialog.m_textArea != null ? dialog.m_textArea.text : null;
+            Debug.Log($"[AugaAutoStart] compendium {what}, {when}: texts={count} topic='{topic}' body='{body}' list={dialog.m_listRoot.anchoredPosition}");
+            if (count < CompendiumTestTexts)
+                AutoTest.Fail($"compendium ({when}): the {what} tab lists {count} texts, fewer than the {CompendiumTestTexts} added");
+            if (count == 0) return;
+            // EpicLoot's pages have no text of their own: they draw in a text area of their own
+            if (string.IsNullOrEmpty(topic) || (!string.IsNullOrEmpty(dialog.m_texts[0].m_text) && string.IsNullOrEmpty(body)))
+                AutoTest.Fail($"compendium ({when}): the {what} tab shows no text (topic '{topic}', body '{body}')");
+            if (!dialog.m_texts[0].m_selected.activeSelf)
+                AutoTest.Fail($"compendium ({when}): the {what} tab's first text is not the selected one");
+            CheckRowInView(dialog, 0, what, when);
+        }
+
+        /// <summary>The row of a text has to be whole inside the list's view.</summary>
+        private static void CheckRowInView(TextsDialog dialog, int index, string what, string when)
+        {
+            var view = (RectTransform)dialog.m_leftScrollRect.transform;
+            var row = (RectTransform)dialog.m_texts[index].m_listElement.transform;
+            var top = view.InverseTransformPoint(row.TransformPoint(0f, row.rect.yMax, 0f)).y;
+            var bottom = view.InverseTransformPoint(row.TransformPoint(0f, row.rect.yMin, 0f)).y;
+            Debug.Log($"[AugaAutoStart] compendium {what}, {when}: row {index} from {top:0.#} to {bottom:0.#}, view from {view.rect.yMax:0.#} to {view.rect.yMin:0.#}, list={dialog.m_listRoot.anchoredPosition}");
+            if (top > view.rect.yMax + 0.5f || bottom < view.rect.yMin - 0.5f)
+                AutoTest.Fail($"compendium ({when}): row {index} of the {what} list is cut off by its view (row {top:0.#} to {bottom:0.#}, view {view.rect.yMax:0.#} to {view.rect.yMin:0.#})");
+        }
+
+        /// <summary>
+        /// Choosing rows in a long list: a row already in view leaves the list where it is, and one out of view, below
+        /// or above, scrolls it just far enough to show the whole row. Ends with the list scrolled down.
+        /// </summary>
+        private static IEnumerator CompendiumChooseRows(TextsDialog dialog, string what)
+        {
+            if (dialog.m_texts.Count <= CompendiumFarRow)
+            {
+                AutoTest.Fail($"compendium: the {what} list has only {dialog.m_texts.Count} rows");
+                yield break;
+            }
+            var before = dialog.m_listRoot.anchoredPosition;
+            Try(() => dialog.ShowText(2));
+            yield return new WaitForSecondsRealtime(0.5f);
+            Try(() => CheckRowInView(dialog, 2, what, "row in view chosen"));
+            if (Vector2.Distance(dialog.m_listRoot.anchoredPosition, before) > 0.5f)
+                AutoTest.Fail($"compendium: choosing a row in view moved the {what} list from {before} to {dialog.m_listRoot.anchoredPosition}");
+            Shot($"13c_compendium_{what}_row_in_view");
+            yield return new WaitForSecondsRealtime(0.5f);
+            Try(() => dialog.ShowText(CompendiumFarRow));
+            yield return new WaitForSecondsRealtime(0.5f);
+            Try(() => CheckRowInView(dialog, CompendiumFarRow, what, "row below the view chosen"));
+            Shot($"13c_compendium_{what}_row_below");
+            yield return new WaitForSecondsRealtime(0.5f);
+            Try(() => dialog.ShowText(5));
+            yield return new WaitForSecondsRealtime(0.5f);
+            Try(() => CheckRowInView(dialog, 5, what, "row above the view chosen"));
+            Shot($"13c_compendium_{what}_row_above");
+            yield return new WaitForSecondsRealtime(0.5f);
+            Try(() => dialog.ShowText(CompendiumFarRow));
+            yield return new WaitForSecondsRealtime(0.5f);
+        }
+
+        /// <summary>
+        /// Two more openings of the compendium. The second, from the tab the first one ended on, chooses rows in both
+        /// lists; a dialog is filled once per opening, so going to another tab and back keeps the text the player chose.
+        /// The third starts with both lists scrolled down, and each has to be back at its first text.
+        /// </summary>
+        private static IEnumerator CompendiumReopen(Type controllerType, Component controller, TabHandler tabHandler, TextsDialog tutorials, TextsDialog lore)
+        {
+            var loreTab = tabHandler != null && lore != null ? tabHandler.m_tabs.FindIndex(t => t.m_page != null && lore.transform.IsChildOf(t.m_page)) : -1;
+            if (loreTab < 0 || tutorials == null)
+            {
+                AutoTest.Fail("compendium: no Tutorials dialog, or no tab holds the Lore dialog");
+                yield break;
+            }
+            Debug.Log("[AugaAutoStart] open compendium again");
+            Try(() => controllerType.GetMethod("ShowCompendium").Invoke(controller, null));
+            yield return new WaitForSecondsRealtime(0.5f);
+            Try(() => tabHandler.SetActiveTab(loreTab));
+            yield return new WaitForSecondsRealtime(1f);
+            Shot("13c_compendium_lore_reopened");
+            Try(() => CheckTextsList(lore, "Lore", "second opening"));
+            yield return new WaitForSecondsRealtime(0.5f);
+            yield return CompendiumChooseRows(lore, "Lore");
+            Try(() => tabHandler.SetActiveTab(0));
+            yield return new WaitForSecondsRealtime(0.5f);
+            yield return CompendiumChooseRows(tutorials, "Tutorials");
+            Try(() => tabHandler.SetActiveTab(loreTab));
+            yield return new WaitForSecondsRealtime(0.5f);
+            if (lore.m_texts.Count > CompendiumFarRow && !lore.m_texts[CompendiumFarRow].m_selected.activeSelf)
+                AutoTest.Fail("compendium: going to another tab and back lost the Lore text the player chose");
+            Try(() => controllerType.GetMethod("HideCompendium").Invoke(controller, null));
+            yield return new WaitForSecondsRealtime(0.5f);
+
+            Debug.Log("[AugaAutoStart] open compendium with its lists scrolled down");
+            Try(() => controllerType.GetMethod("ShowCompendium").Invoke(controller, null));
+            yield return new WaitForSecondsRealtime(1f);
+            Shot("13c_compendium_tutorials_scrolled_reopened");
+            Try(() => CheckTextsList(tutorials, "Tutorials", "opened with its list scrolled"));
+            yield return new WaitForSecondsRealtime(0.5f);
+            Try(() => tabHandler.SetActiveTab(loreTab));
+            yield return new WaitForSecondsRealtime(1f);
+            Shot("13c_compendium_lore_scrolled_reopened");
+            Try(() => CheckTextsList(lore, "Lore", "opened with its list scrolled"));
+            yield return new WaitForSecondsRealtime(0.5f);
+            Try(() => controllerType.GetMethod("HideCompendium").Invoke(controller, null));
+            yield return new WaitForSecondsRealtime(0.5f);
+        }
+
+        /// <summary>
+        /// EpicLoot's compendium pages: its text area is a clone that takes over from the dialog's own, and each page
+        /// has to draw its lines in it, on screen. Runs only when EpicLoot added its pages to the dialog.
+        /// </summary>
+        private static IEnumerator CompendiumEpicLootPages(TextsDialog dialog, TabHandler tabHandler)
+        {
+            var hasPages = dialog != null && dialog.GetComponents<MonoBehaviour>().Any(c => c != null && c.GetType().Name == "MagicPages");
+            if (!hasPages) yield break;
+            if (tabHandler != null) Try(() => tabHandler.SetActiveTab(0));
+            yield return new WaitForSecondsRealtime(0.5f);
+            var found = 0;
+            for (var i = 0; i < dialog.m_texts.Count; i++)
+            {
+                var type = dialog.m_texts[i].GetType();
+                if (type.BaseType == null || type.BaseType.Name != "MagicTextInfo") continue;
+                found++;
+                var index = i;
+                Try(() => dialog.ShowText(index));
+                yield return new WaitForSecondsRealtime(1f);
+                Shot($"13d_epicloot_page_{found}_{type.Name}");
+                var area = dialog.GetComponentsInChildren<Transform>(true).FirstOrDefault(t => t.name == "EpicLootMagicTextArea");
+                var lines = area != null && area.gameObject.activeInHierarchy
+                    ? area.GetComponentsInChildren<TMP_Text>(false).Count(t => !string.IsNullOrWhiteSpace(t.text))
+                    : 0;
+                Debug.Log($"[AugaAutoStart] EpicLoot page {type.Name}: area={(area != null ? PathOf(area) : "none")} shown={(area != null && area.gameObject.activeInHierarchy)} lines={lines}");
+                if (lines == 0)
+                    AutoTest.Fail($"compendium: EpicLoot's page {type.Name} draws nothing (text area {(area != null ? PathOf(area) : "missing")})");
+                // the screenshot is taken at the end of the frame, so the page has to stay until then
+                yield return new WaitForSecondsRealtime(0.5f);
+            }
+            if (found == 0)
+                AutoTest.Fail("compendium: EpicLoot is loaded but lists none of its pages");
         }
 
         /// <summary>AUGA_TEST_ENCHANTING=1: an EpicLoot enchanting table spawned in front of the player, its UI opened and every tab screenshotted, then removed again.</summary>
@@ -1511,6 +1677,7 @@ namespace AugaAutoStart
                 DumpLive("EnchantingTableUI", ui);
                 var tabHandler = uiType.GetField("TabHandler")?.GetValue(ui) as TabHandler;
                 var count = tabHandler != null ? tabHandler.m_tabs.Count : 0;
+                CheckEnchantingTabsFit(tabHandler);
                 for (var i = 1; i < count; i++)
                 {
                     var tab = tabHandler.m_tabs[i];
@@ -1521,11 +1688,96 @@ namespace AugaAutoStart
                     Shot("18_enchanting_" + i + "_" + name);
                     yield return new WaitForSecondsRealtime(0.5f);
                 }
+                yield return EnchantingStorageMessage(tabHandler, tableComponent);
                 Try(() => uiType.GetMethod("Hide", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static).Invoke(null, null));
             }
             yield return new WaitForSecondsRealtime(0.5f);
             Try(() => ZNetScene.instance.Destroy(table));
             yield return new WaitForSecondsRealtime(0.5f);
+        }
+
+        /// <summary>
+        /// The Storage page's message shares a row with the Take All buttons and has to stay clear of them and of the
+        /// grids below: with Storage locked, unlocked, and with as long a message as the translations have.
+        /// </summary>
+        private static IEnumerator EnchantingStorageMessage(TabHandler tabHandler, Component table)
+        {
+            var index = tabHandler != null ? tabHandler.m_tabs.FindIndex(t => t.m_page != null && t.m_page.name == "StashContent") : -1;
+            if (index < 0) yield break;
+            Try(() => tabHandler.SetActiveTab(index));
+            yield return new WaitForSecondsRealtime(1f);
+            var stash = tabHandler.m_tabs[index].m_page.GetComponents<MonoBehaviour>().FirstOrDefault(c => c != null && c.GetType().Name == "StashUI");
+            if (stash == null) yield break;
+            var label = stash.GetType().GetField("CapacityLabel")?.GetValue(stash) as TMP_Text;
+            if (label == null) yield break;
+            Try(() => CheckStorageMessage(stash, label, "locked"));
+
+            Try(() =>
+            {
+                var setLevel = table.GetType().GetMethod("SetFeatureLevel");
+                setLevel.Invoke(table, new[] { Enum.Parse(setLevel.GetParameters()[0].ParameterType, "Storage"), (object)1 });
+            });
+            yield return new WaitForSecondsRealtime(1f);
+            Shot("18_enchanting_storage_unlocked");
+            Try(() => CheckStorageMessage(stash, label, "unlocked"));
+            yield return new WaitForSecondsRealtime(0.5f);
+
+            // the Russian locked message, one of the longest
+            label.text = "Разблокируйте хранилище на вкладке улучшений, чтобы класть материалы";
+            yield return new WaitForSecondsRealtime(0.5f);
+            Shot("18_enchanting_storage_long_message");
+            Try(() => CheckStorageMessage(stash, label, "long message"));
+            yield return new WaitForSecondsRealtime(0.5f);
+        }
+
+        private static void CheckStorageMessage(Component stash, TMP_Text label, string when)
+        {
+            label.ForceMeshUpdate();
+            var page = (RectTransform)stash.transform;
+            var bounds = label.textBounds;
+            var min = page.InverseTransformPoint(label.transform.TransformPoint(bounds.min));
+            var max = page.InverseTransformPoint(label.transform.TransformPoint(bounds.max));
+            Debug.Log($"[AugaAutoStart] storage message, {when}: '{label.text}' size={label.fontSize:0.#} lines={label.textInfo.lineCount} chars={label.textInfo.characterCount}/{label.text.Length} x={min.x:0.#}..{max.x:0.#} y={min.y:0.#}..{max.y:0.#}");
+            if (label.textInfo.characterCount < label.text.Length)
+                AutoTest.Fail($"Storage page, {when}: the message is cut off ({label.textInfo.characterCount} of {label.text.Length} characters)");
+
+            foreach (var field in new[] { "TakeAllMaterialsButton", "TakeAllShardstonesButton" })
+            {
+                var button = stash.GetType().GetField(field)?.GetValue(stash) as Button;
+                if (button == null || !button.gameObject.activeInHierarchy) continue;
+                var rect = (RectTransform)button.transform;
+                var left = page.InverseTransformPoint(rect.TransformPoint(rect.rect.min)).x;
+                var right = page.InverseTransformPoint(rect.TransformPoint(rect.rect.max)).x;
+                if (max.x > left && min.x < right)
+                    AutoTest.Fail($"Storage page, {when}: the message (x {min.x:0.#} to {max.x:0.#}) runs into {field} (x {left:0.#} to {right:0.#})");
+            }
+
+            foreach (var field in new[] { "MaterialsList", "ShardstonesList" })
+            {
+                var list = stash.GetType().GetField(field)?.GetValue(stash) as Component;
+                if (list == null) continue;
+                var rect = (RectTransform)list.transform;
+                var top = page.InverseTransformPoint(rect.TransformPoint(rect.rect.max)).y;
+                if (min.y < top)
+                    AutoTest.Fail($"Storage page, {when}: the message reaches down to {min.y:0.#}, into {field} at {top:0.#}");
+            }
+        }
+
+        /// <summary>Every tab the config leaves on has to sit inside the tab bar; a tab past its end is off the window and cannot be reached.</summary>
+        private static void CheckEnchantingTabsFit(TabHandler tabHandler)
+        {
+            if (tabHandler == null) return;
+            var bar = (RectTransform)tabHandler.transform;
+            LayoutRebuilder.ForceRebuildLayoutImmediate(bar);
+            foreach (var tab in tabHandler.m_tabs)
+            {
+                if (tab.m_button == null) continue;
+                var rect = (RectTransform)tab.m_button.transform;
+                var bottom = bar.InverseTransformPoint(rect.TransformPoint(0f, rect.rect.yMin, 0f)).y;
+                Debug.Log($"[AugaAutoStart] enchanting tab button {rect.name} #{rect.GetSiblingIndex()} on={rect.gameObject.activeSelf} size={rect.rect.size} bottom={bottom:0.#} bar bottom={bar.rect.yMin:0.#}");
+                if (rect.gameObject.activeSelf && bottom < bar.rect.yMin - 0.5f)
+                    AutoTest.Fail($"enchanting table: tab {rect.name} ends {bar.rect.yMin - bottom:0.#} below the tab bar");
+            }
         }
 
         private const string MagicItemKey = "randyknapp.mods.epicloot#EpicLoot.MagicItemComponent";

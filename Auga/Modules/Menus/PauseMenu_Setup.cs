@@ -79,9 +79,11 @@ namespace Auga
                 foreach (TextsDialog.TextInfo text1 in instance.m_texts)
                     text1.m_selected.SetActive(false);
                 text.m_selected.SetActive(true);
-                if (instance.m_leftScrollRect != null)
+                // the compendium sets up its Lore dialog while another tab shows: a hidden dialog cannot start a
+                // coroutine (Unity logs an error), and has no list on screen to scroll to the chosen text
+                if (instance.m_leftScrollRect != null && instance.gameObject.activeInHierarchy)
                 {
-                    instance.StartCoroutine(instance.FocusOnCurrentLevel(instance.m_leftScrollRect, instance.m_listRoot, text.m_selected.transform as RectTransform));                    
+                    instance.StartCoroutine(instance.FocusOnCurrentLevel(instance.m_leftScrollRect, instance.m_listRoot, text.m_selected.transform as RectTransform));
                 }
             }
             

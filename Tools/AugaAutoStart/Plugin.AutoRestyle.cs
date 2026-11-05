@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.IO;
 using System.Linq;
+using HarmonyLib;
 using Jotunn.Managers;
 using UnityEngine;
 using UnityEngine.UI;
@@ -91,6 +92,24 @@ namespace AugaAutoStart
                 Try(() => button.onClick.Invoke());
                 Check(clicked, "a listener added after the button was built runs (the button is the same object)");
             }
+
+            // a widget built in a method of this helper that a Harmony patch has replaced: the frame has to count as the
+            // helper's. Unity starts the method, so no unpatched frame of the helper is on the stack to decide instead.
+            var harmony = new Harmony("AugaAutoStart.AutoRestyleCheck");
+            GameObject patchedBuilder = null;
+            Try(() =>
+            {
+                harmony.Patch(AccessTools.Method(typeof(AutoRestylePatchedBuilder), "Start"), postfix: new HarmonyMethod(typeof(AutoRestylePatchedBuilder), nameof(AutoRestylePatchedBuilder.AfterStart)));
+                patchedBuilder = new GameObject("AutoRestylePatchedBuilder", typeof(RectTransform), typeof(AutoRestylePatchedBuilder));
+                patchedBuilder.transform.SetParent(front, false);
+            });
+            yield return new WaitForSecondsRealtime(0.5f);
+            var patchedText = patchedBuilder != null ? patchedBuilder.GetComponent<AutoRestylePatchedBuilder>().Built : null;
+            Check(patchedText != null, "the patched method ran and built its widget");
+            if (patchedText != null)
+                Check(IsAugaFont(patchedText.font) == expectRestyled, $"the text built in a patched method has font {NameOf(patchedText.font)}");
+            Try(() => harmony.UnpatchSelf());
+            if (patchedBuilder != null) Object.Destroy(patchedBuilder);
 
             // a UI prefab from this helper's bundle, restyled on the asset when it is loaded
             Stream stream = null;
@@ -194,5 +213,22 @@ namespace AugaAutoStart
     /// <summary>Marks an object as this helper's, so Auga's screens pass can tie it to a dependent mod.</summary>
     public class AutoRestyleProbe : MonoBehaviour
     {
+    }
+
+    /// <summary>Builds a Jotunn widget from Start, which AutoRestyleCheck patches, so that only Unity is below the patched frame.</summary>
+    public class AutoRestylePatchedBuilder : MonoBehaviour
+    {
+        public Text Built;
+
+        public static void AfterStart()
+        {
+        }
+
+        private void Start()
+        {
+            var middle = new Vector2(0.5f, 0.5f);
+            var gui = GUIManager.Instance;
+            Built = gui.CreateText("Patched", transform, middle, middle, Vector2.zero, gui.AveriaSerifBold, 16, Color.white, true, Color.black, 200f, 30f, false).GetComponent<Text>();
+        }
     }
 }

@@ -32,7 +32,7 @@ namespace Auga
     {
         public const string PluginID = "randyknapp.mods.auga";
         public const string PluginName = "Project Auga";
-        public const string Version = "1.4.1";
+        public const string Version = "1.4.2";
 
         public static readonly AugaAssets Assets = new AugaAssets();
         public static readonly AugaColors Colors = new AugaColors();

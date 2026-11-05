@@ -17,8 +17,11 @@ dependency_map:
 # The Thunderstore/Hexium team these publish under.
 author_name: RandyKnapp
 
+# Off: mod-tools' machine config.yml points at Modtest, a profile played in, where Auga is not installed and where
+# My Little UI and Minimal Status Effects refuse to load beside it. Turn it on once config.yml points at a profile
+# meant for Auga, such as the AugaAuto test profile.
 deploy:
-  enabled: true
+  enabled: false
 
 publish:
   thunderstore:

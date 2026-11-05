@@ -8,17 +8,34 @@ using UnityEngine.UI;
 namespace Auga
 {
 
+    /// <summary>
+    /// Vanilla puts the chosen row's centre on the point the list is anchored to, which in the compendium's dialogs is
+    /// an edge of the view (the top in Lore, the bottom in Tutorials): the row is cut in half, and the list jumps at
+    /// every choice. Here a row in view leaves the list where it is, and any other scrolls it just far enough to show
+    /// the whole row. Working in the view's space makes this independent of how the list is anchored.
+    /// </summary>
     [HarmonyPatch(typeof(TextsDialog), nameof(TextsDialog.SnapTo))]
     public static class SnapTo_Patch
     {
-        public static void Postfix(TextsDialog __instance, RectTransform listRoot, ScrollRect scrollRect)
+        public static bool Prefix(TextsDialog __instance, ScrollRect scrollRect, RectTransform listRoot, RectTransform target)
         {
-            var augaTextComponent = __instance.GetComponent<AugaTextsDialogFilter>();
-            if (augaTextComponent == null)
-                return;
+            if (__instance.GetComponent<AugaTextsDialogFilter>() == null)
+                return true;
 
-            var newVector = new Vector2(0, listRoot.anchoredPosition.y);
-            listRoot.anchoredPosition = newVector;
+            var view = (RectTransform)scrollRect.transform;
+            // the target is the row's highlight, which overhangs the row and would never quite fit at the list's ends
+            var row = (RectTransform)target.parent;
+            var top = view.InverseTransformPoint(row.TransformPoint(0f, row.rect.yMax, 0f)).y;
+            var bottom = view.InverseTransformPoint(row.TransformPoint(0f, row.rect.yMin, 0f)).y;
+
+            var scroll = 0f;
+            if (top > view.rect.yMax)
+                scroll = view.rect.yMax - top;
+            else if (bottom < view.rect.yMin)
+                scroll = view.rect.yMin - bottom;
+
+            listRoot.anchoredPosition = new Vector2(0f, listRoot.anchoredPosition.y + scroll);
+            return false;
         }
     }
 
